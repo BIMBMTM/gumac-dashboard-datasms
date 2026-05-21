@@ -1,0 +1,2124 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GUMAC · SMS Campaign CRM Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --bg: #f6f7fb;
+    --bg-2: #eef0f7;
+    --surface: #ffffff;
+    --surface-2: #fbfbfe;
+    --ink: #0f1226;
+    --ink-2: #2b2f4a;
+    --muted: #6b7088;
+    --muted-2: #9aa0b6;
+    --line: rgba(15, 18, 38, 0.06);
+    --line-2: rgba(15, 18, 38, 0.10);
+    --blue: #aec6ff;
+    --blue-ink: #4f6cf7;
+    --violet: #d4c5ff;
+    --violet-ink: #7a5cf0;
+    --pink: #ffc9e0;
+    --pink-ink: #e26aa6;
+    --mint: #bfead6;
+    --mint-ink: #2fa874;
+    --rose: #ffc4c4;
+    --rose-ink: #e3565b;
+    --amber: #ffe2b3;
+    --amber-ink: #d18a2b;
+    --shadow-sm: 0 1px 2px rgba(15,18,38,0.04);
+    --shadow-md: 0 8px 24px -12px rgba(15,18,38,0.10), 0 2px 6px rgba(15,18,38,0.04);
+    --shadow-lg: 0 24px 60px -28px rgba(15,18,38,0.18), 0 6px 16px rgba(15,18,38,0.05);
+    --radius-sm: 12px;
+    --radius-md: 18px;
+    --radius-lg: 24px;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; font-family: Arial, sans-serif !important;}
+  body{
+    color: var(--ink);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(174,198,255,0.35), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(212,197,255,0.35), transparent 55%),
+      radial-gradient(800px 500px at 50% 100%, rgba(255,201,224,0.22), transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    font-family: Arial, sans-serif;
+  }
+  *, *::before, *::after { font-family: Arial, sans-serif !important; }
+
+  /* ============== LOGIN ============== */
+  .login-screen{
+    position: fixed; inset: 0; z-index: 10000;
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(800px 500px at 20% 20%, rgba(174,198,255,0.4), transparent 60%),
+      radial-gradient(700px 400px at 80% 80%, rgba(212,197,255,0.4), transparent 60%),
+      var(--bg);
+  }
+  .login-card{
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 42px 38px;
+    box-shadow: var(--shadow-lg);
+    width: 100%; max-width: 420px;
+    text-align: center;
+  }
+  .login-mark{
+    width: 56px; height: 56px; border-radius: 18px; margin: 0 auto 18px;
+    background: linear-gradient(135deg, var(--blue-ink), var(--violet-ink));
+    display:grid; place-items:center; color:#fff; font-weight: 800; font-size: 22px;
+    box-shadow: 0 10px 28px -10px rgba(122,92,240,0.5);
+  }
+  .login-title{ font-size: 22px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.02em;}
+  .login-sub{ font-size: 13px; color: var(--muted); margin-bottom: 28px;}
+  .login-input{
+    width: 100%; padding: 14px 16px;
+    border: 1.5px solid var(--line-2); border-radius: 14px;
+    font-size: 14px; outline: none; background: white;
+    transition: all .2s ease; font-family: Arial, sans-serif;
+  }
+  .login-input:focus{ border-color: var(--violet-ink); box-shadow: 0 0 0 4px rgba(122,92,240,0.10);}
+  .login-btn{
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, var(--blue-ink), var(--violet-ink));
+    color: white; border: none; border-radius: 14px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    margin-top: 14px; transition: transform .2s ease;
+    box-shadow: 0 8px 24px -10px rgba(122,92,240,0.5);
+  }
+  .login-btn:hover{ transform: translateY(-1px);}
+  .login-error{
+    color: var(--rose-ink); font-size: 12px; margin-top: 10px; font-weight: 600;
+    height: 18px;
+  }
+
+  /* ============== LAYOUT ============== */
+  .app{ display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+  .sidebar{
+    position: sticky; top: 0; height: 100vh;
+    padding: 28px 20px;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .brand{
+    display:flex; align-items:center; gap: 10px; padding: 6px 8px 22px 8px;
+    border-bottom: 1px dashed var(--line-2); margin-bottom: 16px;
+  }
+  .brand-mark{
+    width: 34px; height: 34px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--blue-ink), var(--violet-ink));
+    box-shadow: var(--shadow-md);
+    display:grid; place-items:center; color:#fff; font-weight: 800; font-size: 15px;
+  }
+  .brand-name{ font-weight: 800; font-size: 15px;}
+  .brand-sub{ font-size: 11px; color: var(--muted); margin-top: 2px;}
+  .nav-label{ font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted-2); padding: 14px 10px 6px 10px; font-weight: 700;}
+  .nav-item{
+    display:flex; align-items: center; gap: 10px;
+    padding: 11px 12px; border-radius: 12px;
+    color: var(--ink-2); font-weight: 600; font-size: 13px;
+    cursor: pointer; transition: all .2s ease;
+    border: none; background: transparent; text-align: left; width: 100%;
+    font-family: Arial, sans-serif;
+  }
+  .nav-item:hover{ background: rgba(15,18,38,0.04); }
+  .nav-item.active{ background: var(--surface); box-shadow: var(--shadow-sm); color: var(--ink); font-weight: 700;}
+  .nav-dot{ width: 8px; height:8px; border-radius: 50%; flex-shrink:0;}
+  .nav-item[data-section="overview"] .nav-dot{ background: var(--ink);}
+  .nav-item[data-section="sec-1"] .nav-dot{ background: var(--violet-ink);}
+  .nav-item[data-section="sec-2"] .nav-dot{ background: var(--blue-ink);}
+  .nav-item[data-section="sec-3"] .nav-dot{ background: var(--pink-ink);}
+  .nav-item[data-section="sec-4"] .nav-dot{ background: var(--mint-ink);}
+  .nav-item[data-section="sec-5"] .nav-dot{ background: var(--amber-ink);}
+
+  .sidebar-foot{
+    margin-top: auto; padding: 14px;
+    background: var(--surface);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--line);
+    font-size: 11px; color: var(--muted);
+  }
+  .live-dot{ display:inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--mint-ink); margin-right: 8px;
+    animation: pulse 2s infinite;}
+  @keyframes pulse{
+    0%{ box-shadow: 0 0 0 0 rgba(47,168,116,0.4);}
+    70%{ box-shadow: 0 0 0 8px rgba(47,168,116,0);}
+    100%{ box-shadow: 0 0 0 0 rgba(47,168,116,0);}
+  }
+  .logout-btn{
+    width:100%; padding: 8px; margin-top: 10px;
+    background: var(--bg-2); border: none; border-radius: 8px;
+    color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer;
+    font-family: Arial, sans-serif;
+  }
+  .logout-btn:hover{ background: var(--rose); color: var(--rose-ink);}
+
+  /* ============== MAIN ============== */
+  main{ padding: 28px 36px 80px 36px; max-width: 1500px; }
+  .topbar{ display:flex; align-items:center; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 12px;}
+  .breadcrumb{ font-size: 12px; color: var(--muted); }
+  .breadcrumb span{ color: var(--ink); font-weight: 700;}
+  .pill{
+    display:inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px; background: var(--surface);
+    border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); font-weight: 600;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Filter bar */
+  .filter-bar{
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    padding: 14px 18px; margin-bottom: 22px;
+    box-shadow: var(--shadow-sm);
+  }
+  .filter-group{ display:flex; align-items:center; gap: 8px;}
+  .filter-label{ font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;}
+  .filter-select{
+    padding: 8px 30px 8px 12px;
+    border: 1px solid var(--line-2); border-radius: 10px;
+    background: white; font-size: 12px; color: var(--ink); font-weight: 600;
+    cursor: pointer; outline: none; min-width: 140px;
+    font-family: Arial, sans-serif;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236b7088' d='M5 6L0 0h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+  }
+  .filter-select:focus{ border-color: var(--violet-ink);}
+  .filter-reset{
+    padding: 8px 14px; border: none; border-radius: 10px;
+    background: var(--bg-2); color: var(--muted); cursor: pointer;
+    font-size: 11px; font-weight: 700; transition: all .2s ease;
+    font-family: Arial, sans-serif;
+  }
+  .filter-reset:hover{ background: var(--rose); color: var(--rose-ink);}
+  .filter-info{ margin-left: auto; font-size: 11px; color: var(--muted);}
+  .filter-info b{ color: var(--ink); font-weight: 700;}
+
+  .page-title{
+    font-size: clamp(24px, 3vw, 34px); font-weight: 800;
+    letter-spacing: -0.02em; line-height: 1.1; margin: 0 0 6px;
+  }
+  .page-sub{ color: var(--muted); font-size: 13px; max-width: 720px; line-height: 1.55; margin-bottom: 24px;}
+
+  /* Section visibility */
+  .section-block{ display: none; animation: fadeIn .35s ease; }
+  .section-block.show{ display: block; }
+  @keyframes fadeIn{ from{ opacity: 0; transform: translateY(6px); } to{ opacity: 1; transform: none; } }
+
+  section{ margin-top: 16px; }
+  .section-head{
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 18px; padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .section-no{ font-size: 11px; letter-spacing: 0.14em; color: var(--muted-2); font-weight: 700; text-transform: uppercase;}
+  .section-title{ font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 4px 0 0;}
+  .section-desc{ color: var(--muted); font-size: 13px; max-width: 700px; margin-top: 6px; line-height: 1.5;}
+
+  /* Cards */
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    padding: 22px;
+  }
+  .card-title{ font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 700; margin: 0;}
+  .card-value{ font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 8px 0 2px;}
+  .card-sub{ font-size: 12px; color: var(--muted); line-height: 1.4;}
+
+  .kpi-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 1100px){ .kpi-grid{ grid-template-columns: repeat(2,1fr);} }
+
+  .grid-2{ display:grid; grid-template-columns: 1fr 1fr; gap: 16px;}
+  .grid-3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;}
+  .grid-66-33{ display:grid; grid-template-columns: 2fr 1fr; gap: 16px;}
+  @media (max-width: 1100px){ .grid-2, .grid-3, .grid-66-33{ grid-template-columns: 1fr;} }
+
+  .chart-card{ padding: 22px; }
+  .chart-title{ font-size: 14px; font-weight: 800; letter-spacing: -0.01em; margin: 0;}
+  .chart-sub{ color: var(--muted); font-size: 11.5px; margin-top: 2px;}
+  .chart-head{ display:flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px;}
+  .chart-wrap{ position: relative; height: 290px;}
+  .chart-wrap.tall{ height: 360px;}
+  .chart-wrap.short{ height: 220px;}
+  .chart-wrap.xtall{ height: 420px;}
+
+  /* Table */
+  .table-card{ padding: 0; overflow: hidden;}
+  .table-head{ padding: 22px 22px 0 22px; }
+  table{ width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12.5px;}
+  thead th{
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); font-weight: 700;
+    text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  tbody td{
+    padding: 12px 16px; border-bottom: 1px solid var(--line);
+    color: var(--ink-2); white-space: nowrap;
+  }
+  tbody tr:hover{ background: var(--surface-2);}
+  tbody tr:last-child td{ border-bottom: none;}
+  td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
+  .tag{ display:inline-flex; align-items:center; padding: 3px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 700;}
+  .tag-blue{ background: rgba(79,108,247,0.12); color: var(--blue-ink);}
+  .tag-violet{ background: rgba(122,92,240,0.12); color: var(--violet-ink);}
+  .tag-pink{ background: rgba(226,106,166,0.12); color: var(--pink-ink);}
+  .tag-mint{ background: rgba(47,168,116,0.12); color: var(--mint-ink);}
+  .tag-amber{ background: rgba(209,138,43,0.12); color: var(--amber-ink);}
+
+  /* Funnel */
+  .funnel{ display:flex; flex-direction: column; gap: 10px; padding: 8px 0;}
+  .funnel-step{
+    display: grid; grid-template-columns: 240px 1fr 180px;
+    align-items: center; gap: 16px;
+  }
+  .funnel-label{ font-size: 13px; color: var(--ink-2); font-weight: 700;}
+  .funnel-bar-wrap{ height: 38px; background: var(--bg-2); border-radius: 12px; overflow: hidden;}
+  .funnel-bar{ height: 100%; border-radius: 12px; display:flex; align-items:center; padding-left: 14px; color: #fff; font-weight: 700; font-size: 12px;
+    transition: width 1.2s cubic-bezier(.2,.8,.2,1);}
+  .funnel-meta{ font-size: 12.5px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums;}
+  .funnel-meta b{ color: var(--ink); font-weight: 800;}
+
+  /* Loading */
+  .loader{
+    position: fixed; inset: 0; background: var(--bg);
+    display:flex; align-items:center; justify-content: center; flex-direction: column; gap: 16px;
+    z-index: 9999; transition: opacity .4s ease;
+  }
+  .loader.hide{ opacity: 0; pointer-events: none;}
+  .spinner{
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 3px solid var(--line-2); border-top-color: var(--violet-ink);
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg);}}
+  .loader-text{ color: var(--muted); font-size: 13px;}
+
+  .insight{
+    margin-top: 16px; padding: 16px 18px;
+    background: linear-gradient(135deg, rgba(174,198,255,0.18), rgba(212,197,255,0.16));
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    font-size: 12.5px; color: var(--ink-2); line-height: 1.65;
+  }
+  .insight b{ color: var(--ink);}
+  .insight-title{ font-weight: 800; color: var(--violet-ink); font-size: 13px; margin-bottom: 4px; display: block; }
+
+  /* Overview cards */
+  .overview-card{
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-md);
+    padding: 24px; cursor: pointer;
+    transition: all .25s ease; position: relative; overflow: hidden;
+  }
+  .overview-card::before{
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent-color, var(--blue-ink));
+  }
+  .overview-card:hover{ transform: translateY(-3px); box-shadow: var(--shadow-lg);}
+  .overview-no{ font-size: 11px; letter-spacing: 0.12em; color: var(--muted-2); font-weight: 700; text-transform: uppercase;}
+  .overview-title{ font-size: 17px; font-weight: 800; margin: 6px 0 8px; letter-spacing: -0.01em;}
+  .overview-desc{ font-size: 12.5px; color: var(--muted); line-height: 1.5; margin-bottom: 14px;}
+  .overview-stat{ font-size: 22px; font-weight: 800; letter-spacing: -0.02em;}
+  .overview-stat-label{ font-size: 11px; color: var(--muted); margin-top: 2px;}
+
+  @media (max-width: 900px){
+    .app{ grid-template-columns: 1fr;}
+    .sidebar{ display: none;}
+    main{ padding: 20px 16px;}
+    .funnel-step{ grid-template-columns: 1fr; gap: 6px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== LOGIN ========== -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-mark">G</div>
+    <h1 class="login-title">GUMAC CRM Dashboard</h1>
+    <p class="login-sub">Vui lòng nhập mật khẩu để truy cập báo cáo SMS Campaign</p>
+    <input type="password" id="passwordInput" class="login-input" placeholder="Nhập mật khẩu..." autocomplete="off"/>
+    <div class="login-error" id="loginError"></div>
+    <button class="login-btn" id="loginBtn">Đăng nhập</button>
+  </div>
+</div>
+
+<!-- ========== LOADER ========== -->
+<div class="loader hide" id="loader">
+  <div class="spinner" id="spinner"></div>
+  <div class="loader-text" id="loaderText">Đang tải dữ liệu chiến dịch SMS từ Google Sheets…</div>
+  <div id="fallback" style="display:none; max-width: 460px; text-align:center; margin-top: 8px;">
+    <div style="font-size: 13px; color: var(--ink-2); line-height: 1.6; margin-bottom: 18px;">
+      Không kết nối được Google Sheets. Vui lòng upload file CSV trực tiếp.
+    </div>
+    <label for="fileInput" style="
+      display:inline-flex; align-items:center; gap: 10px;
+      padding: 12px 24px; border-radius: 14px;
+      background: linear-gradient(135deg, #4f6cf7, #7a5cf0);
+      color: white; font-weight: 700; font-size: 13px; cursor: pointer;
+    ">📂 Chọn file CSV</label>
+    <input type="file" id="fileInput" accept=".csv" style="display:none" />
+  </div>
+</div>
+
+<!-- ========== APP ========== -->
+<div class="app" id="app" style="display:none;">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">G</div>
+      <div>
+        <div class="brand-name">GUMAC · CRM</div>
+        <div class="brand-sub">Digital Marketing</div>
+      </div>
+    </div>
+    <div class="nav-label">Báo cáo</div>
+    <button class="nav-item active" data-section="overview"><span class="nav-dot"></span>Tổng quan</button>
+    <button class="nav-item" data-section="sec-1"><span class="nav-dot"></span>1. Hiệu quả chiến dịch</button>
+    <button class="nav-item" data-section="sec-2"><span class="nav-dot"></span>2. Chi nhánh</button>
+    <button class="nav-item" data-section="sec-3"><span class="nav-dot"></span>3. Phân khúc khách hàng</button>
+    <button class="nav-item" data-section="sec-4"><span class="nav-dot"></span>4. Hành vi mua hàng</button>
+    <button class="nav-item" data-section="sec-5"><span class="nav-dot"></span>5. Campaign Sinh Nhật</button>
+
+    <div class="sidebar-foot">
+      <div><span class="live-dot"></span>Live data · Google Sheets</div>
+      <button class="logout-btn" id="logoutBtn">🔒 Đăng xuất</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div class="breadcrumb">CRM Dashboard · <span id="bcSection">Tổng quan</span></div>
+      <div style="display:flex; gap: 10px;">
+        <div class="pill"><span class="live-dot"></span>Đồng bộ thời gian thực</div>
+        <div class="pill" id="lastUpdate">—</div>
+      </div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <span class="filter-label">Tháng</span>
+        <select class="filter-select" id="filterMonth"><option value="all">Tất cả</option></select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Năm</span>
+        <select class="filter-select" id="filterYear"><option value="all">Tất cả</option></select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Cửa hàng</span>
+        <select class="filter-select" id="filterBranch" style="min-width:200px"><option value="all">Tất cả chi nhánh</option></select>
+      </div>
+      <button class="filter-reset" id="filterReset">↺ Reset</button>
+      <div class="filter-info">Đang lọc: <b id="filterStatus">Tất cả</b></div>
+    </div>
+
+    <h1 class="page-title">SMS Campaign Tracking · CRM</h1>
+    <p class="page-sub">Phân tích chuyên sâu các chiến dịch SMS — đo lường chuyển đổi, doanh thu, hiệu quả chi phí và hành vi khách hàng từ dữ liệu thực tế của hệ thống GUMAC.</p>
+
+    <!-- ========== OVERVIEW ========== -->
+    <div class="section-block show" id="block-overview">
+      <div class="kpi-grid">
+        <div class="card">
+          <p class="card-title">SMS đã gửi</p>
+          <div class="card-value" id="kpiSent">—</div>
+          <div class="card-sub">Tổng số lượng SMS đã phát đi</div>
+        </div>
+        <div class="card">
+          <p class="card-title">Đơn hàng từ camp</p>
+          <div class="card-value" id="kpiOrders">—</div>
+          <div class="card-sub">Khách hàng đã sử dụng voucher</div>
+        </div>
+        <div class="card">
+          <p class="card-title">Doanh thu từ camp</p>
+          <div class="card-value" id="kpiRevenue">—</div>
+          <div class="card-sub" id="kpiRevenueSub">— của tổng doanh thu</div>
+        </div>
+        <div class="card">
+          <p class="card-title">Chi phí SMS / Doanh thu</p>
+          <div class="card-value" id="kpiCostRatio">—</div>
+          <div class="card-sub">Tỷ lệ chi phí trên doanh thu mang về</div>
+        </div>
+      </div>
+
+      <h3 style="margin: 28px 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 700;">5 Hạng mục báo cáo</h3>
+      <div class="grid-3">
+        <div class="overview-card" data-goto="sec-1" style="--accent-color: var(--violet-ink)">
+          <div class="overview-no">Mục 01</div>
+          <h3 class="overview-title">Hiệu quả chiến dịch SMS</h3>
+          <p class="overview-desc">CR, ATV, ROI, đóng góp doanh thu của từng chiến dịch.</p>
+          <div class="overview-stat" id="ov1Stat">—</div>
+          <div class="overview-stat-label">Chiến dịch đã chạy</div>
+        </div>
+        <div class="overview-card" data-goto="sec-2" style="--accent-color: var(--blue-ink)">
+          <div class="overview-no">Mục 02</div>
+          <h3 class="overview-title">Phân tích chi nhánh</h3>
+          <p class="overview-desc">So sánh SMS gửi đi với hiệu quả doanh thu tại từng chi nhánh.</p>
+          <div class="overview-stat" id="ov2Stat">—</div>
+          <div class="overview-stat-label">Chi nhánh tham gia</div>
+        </div>
+        <div class="overview-card" data-goto="sec-3" style="--accent-color: var(--pink-ink)">
+          <div class="overview-no">Mục 03</div>
+          <h3 class="overview-title">Phân khúc khách hàng (RFM)</h3>
+          <p class="overview-desc">Hiệu suất của từng nhóm RFM, giới tính, doanh thu mỗi nhóm.</p>
+          <div class="overview-stat" id="ov3Stat">—</div>
+          <div class="overview-stat-label">Nhóm RFM</div>
+        </div>
+        <div class="overview-card" data-goto="sec-4" style="--accent-color: var(--mint-ink)">
+          <div class="overview-no">Mục 04</div>
+          <h3 class="overview-title">Hành vi khách hàng</h3>
+          <p class="overview-desc">Tần suất mua, phân bố giá trị đơn, ngày trong tuần, voucher.</p>
+          <div class="overview-stat" id="ov4Stat">—</div>
+          <div class="overview-stat-label">KH unique mua hàng</div>
+        </div>
+        <div class="overview-card" data-goto="sec-5" style="--accent-color: var(--amber-ink)">
+          <div class="overview-no">Mục 05</div>
+          <h3 class="overview-title">Campaign Sinh Nhật (VCSN)</h3>
+          <p class="overview-desc">Funnel 2 điều kiện: tặng áo thun + voucher 10% hóa đơn 499K.</p>
+          <div class="overview-stat" id="ov5Stat">—</div>
+          <div class="overview-stat-label">KH nhận sinh nhật</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== SECTION 1 ========== -->
+    <div class="section-block" id="block-sec-1">
+      <section>
+        <div class="section-head">
+          <div>
+            <div class="section-no">Mục 01</div>
+            <h2 class="section-title">Hiệu quả từng chiến dịch SMS</h2>
+            <p class="section-desc">So sánh các chiến dịch theo: số lượng gửi, CR (tỷ lệ chuyển đổi), ATV, doanh thu, đóng góp vào tổng doanh thu, và chi phí SMS / doanh thu mang về (ROI).</p>
+          </div>
+        </div>
+
+        <!-- Bảng chi tiết -->
+        <div class="card table-card">
+          <div class="table-head">
+            <p class="chart-title">Bảng chỉ số chi tiết các chiến dịch</p>
+            <p class="chart-sub">CR = KH mua / KH gửi · ATV = Doanh thu / Số đơn · ROI = Doanh thu / Chi phí SMS</p>
+          </div>
+          <div style="overflow-x:auto;">
+            <table id="campTable">
+              <thead><tr>
+                <th>Chiến dịch</th>
+                <th class="num">SMS gửi</th>
+                <th class="num">KH mua</th>
+                <th class="num">CR</th>
+                <th class="num">Đơn hàng</th>
+                <th class="num">ATV</th>
+                <th class="num">Doanh thu</th>
+                <th class="num">% / Tổng DT</th>
+                <th class="num">Chi phí SMS</th>
+                <th class="num">SMS/DT</th>
+                <th class="num">ROI</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 1.1: CR + ATV side by side -->
+        <div class="grid-2" style="margin-top: 16px;">
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">Tỷ lệ chuyển đổi (CR) theo chiến dịch</p>
+              <p class="chart-sub">% khách hàng được gửi SMS đã mua hàng</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartCR"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">ATV - Giá trị trung bình mỗi đơn</p>
+              <p class="chart-sub">Khách dùng voucher chi tiêu trung bình bao nhiêu?</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartATV"></canvas></div>
+          </div>
+        </div>
+
+        <!-- 1.2: Funnel chiến dịch -->
+        <div class="card chart-card" style="margin-top: 16px;">
+          <div class="chart-head">
+            <div><p class="chart-title">Funnel chuyển đổi từng chiến dịch</p>
+            <p class="chart-sub">SMS gửi → KH ra cửa hàng → KH mang về doanh thu</p></div>
+          </div>
+          <div class="chart-wrap tall"><canvas id="chartFunnel1"></canvas></div>
+        </div>
+
+        <!-- 1.3: Contribution donut + ROI -->
+        <div class="grid-2" style="margin-top: 16px;">
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">Đóng góp vào tổng doanh thu tháng</p>
+              <p class="chart-sub">% doanh thu từ camp SMS so với nguồn khác</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartContribute"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">ROI · Doanh thu mỗi 1.000đ chi cho SMS</p>
+              <p class="chart-sub">1.000đ chi phí SMS tạo ra bao nhiêu đồng doanh thu?</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartROI"></canvas></div>
+          </div>
+        </div>
+
+        <div class="insight" id="insight1">—</div>
+      </section>
+    </div>
+
+    <!-- ========== SECTION 2 ========== -->
+    <div class="section-block" id="block-sec-2">
+      <section>
+        <div class="section-head">
+          <div>
+            <div class="section-no">Mục 02</div>
+            <h2 class="section-title">Phân tích theo chi nhánh</h2>
+            <p class="section-desc">Đối chiếu lượng SMS gửi với doanh thu thực thu tại từng chi nhánh. Xác định chi nhánh hiệu quả cao và chi nhánh cần cải thiện.</p>
+          </div>
+        </div>
+
+        <!-- 2.1: Scatter SMS vs Revenue -->
+        <div class="card chart-card">
+          <div class="chart-head">
+            <div><p class="chart-title">Quan hệ SMS gửi × Doanh thu từ SMS theo chi nhánh</p>
+            <p class="chart-sub">Trục X: số SMS gửi · Trục Y: doanh thu từ camp · Size: CR</p></div>
+          </div>
+          <div class="chart-wrap tall"><canvas id="chartScatter"></canvas></div>
+        </div>
+
+        <!-- 2.2: Top branch bars -->
+        <div class="grid-2" style="margin-top: 16px;">
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">Top 10 chi nhánh - SMS được gửi nhiều nhất</p>
+              <p class="chart-sub">Đo lường mức độ phủ chiến dịch</p></div>
+            </div>
+            <div class="chart-wrap tall"><canvas id="chartBranchSent"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">Top 10 chi nhánh - Doanh thu từ SMS</p>
+              <p class="chart-sub">Đo lường hiệu quả chuyển đổi</p></div>
+            </div>
+            <div class="chart-wrap tall"><canvas id="chartBranchRev"></canvas></div>
+          </div>
+        </div>
+
+        <!-- 2.3: Bảng đối chiếu CHI TIẾT -->
+        <div class="card table-card" style="margin-top: 16px;">
+          <div class="table-head">
+            <p class="chart-title">Bảng đối chiếu chi tiết: SMS · CR · ATV · AOV · Doanh thu · Tổng DT chi nhánh</p>
+            <p class="chart-sub">CR = đơn từ SMS / SMS gửi · ATV = DT từ SMS / đơn từ SMS · AOV = Tổng DT / Tổng đơn · % SMS = DT SMS / Tổng DT chi nhánh</p>
+          </div>
+          <div style="overflow-x:auto;">
+            <table id="branchTable">
+              <thead><tr>
+                <th>Chi nhánh</th>
+                <th class="num">SMS gửi</th>
+                <th class="num">Đơn từ SMS</th>
+                <th class="num">CR</th>
+                <th class="num">ATV (SMS)</th>
+                <th class="num">DT từ SMS</th>
+                <th class="num">Tổng đơn CN</th>
+                <th class="num">AOV chi nhánh</th>
+                <th class="num">Tổng DT CN</th>
+                <th class="num">% SMS/CN</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="insight" id="insight2" style="margin-top: 16px;">—</div>
+      </section>
+    </div>
+
+    <!-- ========== SECTION 3 ========== -->
+    <div class="section-block" id="block-sec-3">
+      <section>
+        <div class="section-head">
+          <div>
+            <div class="section-no">Mục 03</div>
+            <h2 class="section-title">Phân khúc khách hàng (RFM)</h2>
+            <p class="section-desc">Đo lường hiệu suất của từng nhóm RFM khi nhận SMS — nhóm nào chuyển đổi cao, chi tiêu lớn, và đóng góp nhiều cho doanh thu?</p>
+          </div>
+        </div>
+
+        <!-- 3.1: Stacked - sent vs converted -->
+        <div class="card chart-card">
+          <div class="chart-head">
+            <div><p class="chart-title">SMS gửi vs KH chuyển đổi theo nhóm RFM</p>
+            <p class="chart-sub">Stacked horizontal bar - so sánh trực tiếp pool và CR</p></div>
+          </div>
+          <div class="chart-wrap tall"><canvas id="chartRfmStack"></canvas></div>
+        </div>
+
+        <!-- 3.2: ATV + CR by RFM -->
+        <div class="grid-2" style="margin-top: 16px;">
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">ATV trung bình theo nhóm RFM</p>
+              <p class="chart-sub">Champions có chi tiêu cao hơn các nhóm khác?</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartRfmATV"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">CR · Tỷ lệ chuyển đổi theo nhóm RFM</p>
+              <p class="chart-sub">Nhóm nào phản hồi SMS tốt nhất?</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartRfmCR"></canvas></div>
+          </div>
+        </div>
+
+        <!-- 3.3: Bảng chi tiết -->
+        <div class="card table-card" style="margin-top: 16px;">
+          <div class="table-head">
+            <p class="chart-title">Bảng chỉ số chi tiết từng phân khúc</p>
+            <p class="chart-sub">RPM = Doanh thu / 1 KH gửi (phản ánh giá trị mang về trên mỗi SMS chi tiêu)</p>
+          </div>
+          <div style="overflow-x:auto;">
+            <table id="rfmTable">
+              <thead><tr>
+                <th>RFM Group</th>
+                <th class="num">SMS gửi</th>
+                <th class="num">KH mua</th>
+                <th class="num">CR</th>
+                <th class="num">Đơn</th>
+                <th class="num">ATV</th>
+                <th class="num">Doanh thu</th>
+                <th class="num">% DT</th>
+                <th class="num">RPM</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3.4: Gender + RPM -->
+        <div class="grid-2" style="margin-top: 16px;">
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">Giới tính khách hàng</p>
+              <p class="chart-sub">Doanh thu phân bổ theo giới tính</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartGender"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">RPM - Doanh thu trên mỗi KH gửi SMS</p>
+              <p class="chart-sub">Mỗi 1 SMS gửi cho nhóm này sinh ra bao nhiêu doanh thu?</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartRfmRPM"></canvas></div>
+          </div>
+        </div>
+
+        <div class="insight" id="insight3" style="margin-top: 16px;">—</div>
+      </section>
+    </div>
+
+    <!-- ========== SECTION 4 ========== -->
+    <div class="section-block" id="block-sec-4">
+      <section>
+        <div class="section-head">
+          <div>
+            <div class="section-no">Mục 04</div>
+            <h2 class="section-title">Hành vi khách hàng</h2>
+            <p class="section-desc">Khách mua mấy lần, vào ngày nào, giá trị mỗi đơn bao nhiêu, sử dụng voucher ra sao trong tháng.</p>
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpi-grid">
+          <div class="card">
+            <p class="card-title">KH mua hàng</p>
+            <div class="card-value" id="bhCustomers">—</div>
+            <div class="card-sub">KH unique phát sinh đơn</div>
+          </div>
+          <div class="card">
+            <p class="card-title">ATV / AOV</p>
+            <div class="card-value" id="bhATV">—</div>
+            <div class="card-sub">Giá trị trung bình mỗi đơn</div>
+          </div>
+          <div class="card">
+            <p class="card-title">Voucher đã sử dụng</p>
+            <div class="card-value" id="bhVoucher">—</div>
+            <div class="card-sub" id="bhVoucherSub">tỷ lệ trên SMS gửi</div>
+          </div>
+          <div class="card">
+            <p class="card-title">Doanh thu / KH</p>
+            <div class="card-value" id="bhRPC">—</div>
+            <div class="card-sub">Chi tiêu trung bình mỗi KH</div>
+          </div>
+        </div>
+
+        <!-- 4.1: Doanh thu theo ngày -->
+        <div class="card chart-card" style="margin-top: 16px;">
+          <div class="chart-head">
+            <div><p class="chart-title">Doanh thu theo từng ngày trong tháng</p>
+            <p class="chart-sub">Xu hướng tiêu dùng - đỉnh điểm rơi vào những ngày nào?</p></div>
+          </div>
+          <div class="chart-wrap"><canvas id="chartByDay"></canvas></div>
+        </div>
+
+        <!-- 4.2: Frequency + Order Value Distribution -->
+        <div class="grid-2" style="margin-top: 16px;">
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">Tần suất mua hàng / KH</p>
+              <p class="chart-sub">Phân bố KH mua 1 lần, 2 lần, 3+ lần trong tháng</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartFreq"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">Phân bố giá trị đơn hàng</p>
+              <p class="chart-sub">Histogram đơn hàng theo khoảng giá</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartAOVDist"></canvas></div>
+          </div>
+        </div>
+
+        <!-- 4.3: Day of week + Voucher usage -->
+        <div class="grid-2" style="margin-top: 16px;">
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">Doanh thu theo thứ trong tuần</p>
+              <p class="chart-sub">Ngày nào trong tuần bán chạy nhất?</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartByDow"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">Tỷ lệ sử dụng voucher</p>
+              <p class="chart-sub">% voucher SMS đã được KH dùng</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartVoucher"></canvas></div>
+          </div>
+        </div>
+
+        <div class="insight" id="insight4" style="margin-top: 16px;">—</div>
+      </section>
+    </div>
+
+    <!-- ========== SECTION 5 ========== -->
+    <div class="section-block" id="block-sec-5">
+      <section>
+        <div class="section-head">
+          <div>
+            <div class="section-no">Mục 05</div>
+            <h2 class="section-title">Chiến dịch sinh nhật · VCSN05.26_OFFLINE_BD0526</h2>
+            <p class="section-desc">Phân tích 2 điều kiện kép: Tặng 1 áo thun (KH ra cửa hàng) + Giảm 10% hóa đơn 499K (KH dùng voucher).</p>
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpi-grid">
+          <div class="card">
+            <p class="card-title">SMS sinh nhật đã gửi</p>
+            <div class="card-value" id="vcsnSent">—</div>
+            <div class="card-sub">Pool khách hàng sinh nhật trong tháng</div>
+          </div>
+          <div class="card">
+            <p class="card-title">Đã ra cửa hàng (Nhận áo)</p>
+            <div class="card-value" id="vcsnShirt">—</div>
+            <div class="card-sub" id="vcsnShirtSub">tỷ lệ trên tổng gửi</div>
+          </div>
+          <div class="card">
+            <p class="card-title">Đã dùng voucher giảm giá</p>
+            <div class="card-value" id="vcsnVoucher">—</div>
+            <div class="card-sub" id="vcsnVoucherSub">tỷ lệ trên tổng gửi</div>
+          </div>
+          <div class="card">
+            <p class="card-title">Dùng CẢ 2 điều kiện</p>
+            <div class="card-value" id="vcsnBoth">—</div>
+            <div class="card-sub" id="vcsnBothSub">của KH đã ra cửa hàng</div>
+          </div>
+        </div>
+
+        <!-- Funnel -->
+        <div class="card chart-card" style="margin-top: 16px;">
+          <div class="chart-head">
+            <div><p class="chart-title">Funnel chuyển đổi chiến dịch sinh nhật</p>
+            <p class="chart-sub">Hành trình từ gửi SMS → ra cửa hàng → dùng voucher → cả 2 điều kiện</p></div>
+          </div>
+          <div class="funnel" id="vcsnFunnel"></div>
+        </div>
+
+        <!-- Phân bố + ATV nhóm -->
+        <div class="grid-2" style="margin-top: 16px;">
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">Phân loại 3 nhóm khách hàng</p>
+              <p class="chart-sub">Cả 2 ĐK · Chỉ áo thun · Không phản hồi</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartVcsnSplit"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div><p class="chart-title">So sánh chi tiêu giữa các nhóm</p>
+              <p class="chart-sub">Chi tiêu trung bình / KH theo từng nhóm</p></div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartVcsnRev"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Top branch tổ chức sinh nhật -->
+        <div class="card chart-card" style="margin-top: 16px;">
+          <div class="chart-head">
+            <div><p class="chart-title">Top 10 chi nhánh đón nhiều KH sinh nhật nhất</p>
+            <p class="chart-sub">Theo số lượng đơn hàng từ voucher VCSN</p></div>
+          </div>
+          <div class="chart-wrap tall"><canvas id="chartVcsnBranch"></canvas></div>
+        </div>
+
+        <div class="insight" id="insight5" style="margin-top: 16px;">—</div>
+      </section>
+    </div>
+
+    <div style="margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; display:flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+      <div>© GUMAC · Digital Marketing Team · CRM Dashboard v2.0</div>
+      <div>Nguồn dữ liệu: Google Sheets (live)</div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ============== CONFIG ============== */
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQlFYteEWIxOOk5kQ1GmF2Ios6Ta058JKGSOuc4GgM_ktZqoBesQYCGjt0JHDIkeMEbu7v7l7wyUCKs/pub?gid=0&single=true&output=csv';
+const PASSWORD_HASH = 'e7b8cbc2e625cb1e9bb733dd09ff79693d66cb6204c7e89a56979fa5479ca7b4'; // SHA-256 of password
+const SESSION_KEY = 'gumac_crm_auth_v2';
+
+/* ============== AUTH ============== */
+async function sha256(text){
+  const buf = new TextEncoder().encode(text);
+  const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function checkAuth(){
+  // Check session
+  if (sessionStorage.getItem(SESSION_KEY) === '1') {
+    enterApp();
+    return;
+  }
+  // Show login
+  document.getElementById('loginScreen').style.display = 'flex';
+  const input = document.getElementById('passwordInput');
+  const btn = document.getElementById('loginBtn');
+  const errEl = document.getElementById('loginError');
+
+  const tryLogin = async () => {
+    const val = input.value;
+    if (!val) return;
+    const h = await sha256(val);
+    if (h === PASSWORD_HASH){
+      sessionStorage.setItem(SESSION_KEY, '1');
+      document.getElementById('loginScreen').style.display = 'none';
+      enterApp();
+    } else {
+      errEl.textContent = 'Mật khẩu không đúng. Vui lòng thử lại.';
+      input.value = '';
+      input.focus();
+    }
+  };
+  btn.addEventListener('click', tryLogin);
+  input.addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
+  input.focus();
+}
+
+function enterApp(){
+  document.getElementById('app').style.display = 'grid';
+  document.getElementById('loader').classList.remove('hide');
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    sessionStorage.removeItem(SESSION_KEY);
+    location.reload();
+  });
+  main();
+}
+
+/* ============== HELPERS ============== */
+const fmtN = n => new Intl.NumberFormat('vi-VN').format(Math.round(n||0));
+const fmtVN = n => {
+  n = +n || 0;
+  if (n >= 1e9) return (n/1e9).toFixed(2) + ' tỷ';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + ' tr';
+  if (n >= 1e3) return (n/1e3).toFixed(0) + 'K';
+  return fmtN(n);
+};
+const fmtPct = (n, d=2) => (n||0).toFixed(d) + '%';
+const toNum = s => {
+  if (s == null) return 0;
+  const x = String(s).replace(/[",\s]/g,'').trim();
+  const n = parseFloat(x);
+  return isNaN(n) ? 0 : n;
+};
+const C = {
+  blue:'#aec6ff', blueInk:'#4f6cf7',
+  violet:'#d4c5ff', violetInk:'#7a5cf0',
+  pink:'#ffc9e0', pinkInk:'#e26aa6',
+  mint:'#bfead6', mintInk:'#2fa874',
+  rose:'#ffc4c4', roseInk:'#e3565b',
+  amber:'#ffe2b3', amberInk:'#d18a2b',
+  muted:'#9aa0b6', ink:'#0f1226'
+};
+const PALETTE = [C.violetInk, C.blueInk, C.pinkInk, C.mintInk, C.amberInk, C.roseInk, '#5a90f3', '#a378e9', '#e98abc'];
+
+/* ============== CHART DEFAULTS ============== */
+Chart.register(ChartDataLabels);
+Chart.defaults.font.family = 'Arial, sans-serif';
+Chart.defaults.font.size = 11;
+Chart.defaults.color = C.muted;
+Chart.defaults.plugins.legend.labels.boxWidth = 10;
+Chart.defaults.plugins.legend.labels.boxHeight = 10;
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.padding = 14;
+Chart.defaults.plugins.legend.labels.font = { family: 'Arial, sans-serif', size: 11 };
+Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 18, 38, 0.92)';
+Chart.defaults.plugins.tooltip.padding = 12;
+Chart.defaults.plugins.tooltip.cornerRadius = 10;
+Chart.defaults.plugins.tooltip.titleFont = {weight:'700', size:12, family:'Arial'};
+Chart.defaults.plugins.tooltip.bodyFont = {size:12, family:'Arial'};
+Chart.defaults.plugins.datalabels = {
+  font: { family: 'Arial, sans-serif', size: 10.5, weight: '700' },
+  color: C.ink,
+  display: 'auto'
+};
+
+const gridStyle = { color: 'rgba(15,18,38,0.04)', drawBorder: false, drawTicks: false };
+const xAxisNice = { grid: { display: false }, border: { display: false }, ticks: { padding: 8, font:{family:'Arial', size:10.5} } };
+const yAxisNice = { grid: gridStyle, border: { display: false }, ticks: { padding: 10, font:{family:'Arial', size:10.5} } };
+
+/* ============== DATA STATE ============== */
+let RAW = { b1: [], b2: [], b3: [] };
+let DATA = { b1: [], b2: [], b3: [] };
+let CHARTS = {};
+
+function destroyCharts(){
+  Object.values(CHARTS).forEach(c => { try { c.destroy(); } catch(e){} });
+  CHARTS = {};
+}
+
+/* ============== DATA LOAD ============== */
+async function loadData(){
+  try {
+    const res = await fetch(SHEET_URL, { mode: 'cors' });
+    if (!res.ok) throw new Error('Fetch failed');
+    const txt = await res.text();
+    return Papa.parse(txt, { header: false }).data;
+  } catch(err) {
+    return await loadFromUpload();
+  }
+}
+
+function loadFromUpload(){
+  return new Promise((resolve, reject) => {
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('loaderText').textContent = 'Cần tải dữ liệu thủ công';
+    document.getElementById('fallback').style.display = 'block';
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0]; if(!file) return;
+      document.getElementById('spinner').style.display = 'block';
+      document.getElementById('loaderText').textContent = 'Đang đọc file…';
+      document.getElementById('fallback').style.display = 'none';
+      const reader = new FileReader();
+      reader.onload = evt => resolve(Papa.parse(evt.target.result, {header:false}).data);
+      reader.onerror = () => reject(new Error('Read fail'));
+      reader.readAsText(file, 'UTF-8');
+    });
+  });
+}
+
+function splitTables(rows){
+  const data = rows.slice(2).filter(r => r && r.length > 5);
+  const b1=[], b2=[], b3=[];
+  data.forEach(r => {
+    if (r[2] && String(r[2]).trim()){
+      b1.push({
+        thang: r[0], camp: r[1], maKH: String(r[2]).trim(),
+        ten: r[3], gender: r[4], rfmGroup: r[5], rfmSeg: r[6],
+        sdt: r[7], chiPhi: toNum(r[8]), branch: r[9]
+      });
+    }
+    if (r[13] && String(r[13]).trim()){
+      b2.push({
+        camp: r[12], maKH: String(r[13]).trim(), voucher: r[14],
+        tuNgay: r[15], denNgay: r[16], loai: r[17], giaTri: r[18],
+        branch: r[19], maDH: r[20], ngayMua: r[21],
+        vcCK: r[22], vcTT: r[23], giaTriDH: toNum(r[24]), doanhThu: toNum(r[25])
+      });
+    }
+    if (r[28] && String(r[28]).trim()){
+      b3.push({
+        kenh: r[27], maKH: String(r[28]).trim(), sdt: r[29],
+        maDH: r[30], ngayMua: r[31], doanhThu: toNum(r[32]),
+        maCN: r[33], tenCN: r[34]
+      });
+    }
+  });
+  return {b1, b2, b3};
+}
+
+function parseDate(s){
+  if (!s) return null;
+  s = String(s).trim();
+  let m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if (!m) return null;
+  let a = parseInt(m[1]), b = parseInt(m[2]), yr = parseInt(m[3]);
+  if (yr < 100) yr += 2000;
+  // Cố gắng đoán định dạng: nếu a > 12 chắc chắn là d/m, ngược lại m/d
+  let mo, da;
+  if (a > 12){ da = a; mo = b; }
+  else if (b > 12){ mo = a; da = b; }
+  else { mo = a; da = b; } // mặc định m/d/y theo bảng 3
+  const d = new Date(yr, mo-1, da);
+  return isNaN(d) ? null : d;
+}
+
+function parseMonthYear(s){
+  // tháng trong bảng 1 dạng d/m/yyyy theo data đầu vào "1/5/2026"
+  if (!s) return null;
+  s = String(s).trim();
+  let m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if (!m) return null;
+  let a = parseInt(m[1]), b = parseInt(m[2]), yr = parseInt(m[3]);
+  if (yr < 100) yr += 2000;
+  // Bảng 1 dạng d/m/yyyy: "1/5/2026" = 1 tháng 5
+  let mo, da;
+  if (a > 12){ da = a; mo = b; }
+  else if (b > 12){ mo = a; da = b; }
+  else { da = a; mo = b; } // mặc định d/m cho bảng 1
+  return { year: yr, month: mo };
+}
+
+function normBranch(n){
+  if (!n) return '';
+  return String(n).toLowerCase().replace(/[^a-zà-ỹ0-9]/gi,'');
+}
+function trimName(n){
+  if (!n) return '';
+  return String(n).replace(/^GUMAC[\s\-·]*(CN)?\s*/i, '').trim() || n;
+}
+
+/* ============== FILTERS ============== */
+function initFilters(){
+  // Months from b1 thang field
+  const monthSet = new Set();
+  const yearSet = new Set();
+  const branchSet = new Set();
+
+  RAW.b1.forEach(x => {
+    const my = parseMonthYear(x.thang);
+    if (my){ monthSet.add(my.month); yearSet.add(my.year); }
+    if (x.branch) branchSet.add(normBranch(x.branch));
+  });
+  RAW.b3.forEach(x => {
+    const d = parseDate(x.ngayMua);
+    if (d){ monthSet.add(d.getMonth()+1); yearSet.add(d.getFullYear()); }
+    if (x.tenCN) branchSet.add(normBranch(x.tenCN));
+  });
+
+  // Branch full list with original names
+  const branchNames = {};
+  RAW.b1.forEach(x => { if(x.branch){ branchNames[normBranch(x.branch)] = x.branch; }});
+  RAW.b3.forEach(x => { if(x.tenCN && !branchNames[normBranch(x.tenCN)]) branchNames[normBranch(x.tenCN)] = x.tenCN; });
+
+  const monthSel = document.getElementById('filterMonth');
+  const yearSel = document.getElementById('filterYear');
+  const branchSel = document.getElementById('filterBranch');
+
+  [...monthSet].sort((a,b)=>a-b).forEach(m => {
+    const o = document.createElement('option'); o.value = m; o.textContent = 'Tháng ' + m;
+    monthSel.appendChild(o);
+  });
+  [...yearSet].sort((a,b)=>a-b).forEach(y => {
+    const o = document.createElement('option'); o.value = y; o.textContent = y;
+    yearSel.appendChild(o);
+  });
+  [...branchSet].sort().forEach(key => {
+    const o = document.createElement('option'); o.value = key; o.textContent = trimName(branchNames[key]);
+    branchSel.appendChild(o);
+  });
+
+  // default: chọn tháng/năm có nhiều data nhất
+  const counts = {};
+  RAW.b1.forEach(x => {
+    const my = parseMonthYear(x.thang);
+    if (my){ const k = my.month + '-' + my.year; counts[k] = (counts[k]||0)+1; }
+  });
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  if (top){
+    const [m, y] = top[0].split('-');
+    monthSel.value = m; yearSel.value = y;
+  }
+
+  [monthSel, yearSel, branchSel].forEach(el => el.addEventListener('change', applyFilters));
+  document.getElementById('filterReset').addEventListener('click', () => {
+    monthSel.value = 'all'; yearSel.value = 'all'; branchSel.value = 'all';
+    applyFilters();
+  });
+}
+
+function applyFilters(){
+  const m = document.getElementById('filterMonth').value;
+  const y = document.getElementById('filterYear').value;
+  const br = document.getElementById('filterBranch').value;
+
+  const monthFilter = m === 'all' ? null : parseInt(m);
+  const yearFilter = y === 'all' ? null : parseInt(y);
+  const branchFilter = br === 'all' ? null : br;
+
+  // Filter b1
+  DATA.b1 = RAW.b1.filter(x => {
+    const my = parseMonthYear(x.thang);
+    if (monthFilter && my && my.month !== monthFilter) return false;
+    if (yearFilter && my && my.year !== yearFilter) return false;
+    if (branchFilter && normBranch(x.branch) !== branchFilter) return false;
+    return true;
+  });
+
+  // b2 filter by branch + month (theo Ngày mua)
+  DATA.b2 = RAW.b2.filter(x => {
+    const d = parseDate(x.ngayMua);
+    if (monthFilter && d && (d.getMonth()+1) !== monthFilter) return false;
+    if (yearFilter && d && d.getFullYear() !== yearFilter) return false;
+    if (branchFilter && normBranch(x.branch) !== branchFilter) return false;
+    return true;
+  });
+
+  // b3 filter by branch + month
+  DATA.b3 = RAW.b3.filter(x => {
+    const d = parseDate(x.ngayMua);
+    if (monthFilter && d && (d.getMonth()+1) !== monthFilter) return false;
+    if (yearFilter && d && d.getFullYear() !== yearFilter) return false;
+    if (branchFilter && normBranch(x.tenCN) !== branchFilter) return false;
+    return true;
+  });
+
+  // status
+  const parts = [];
+  if (monthFilter) parts.push('Tháng ' + monthFilter);
+  if (yearFilter) parts.push(yearFilter);
+  if (branchFilter){
+    const sel = document.getElementById('filterBranch');
+    parts.push(sel.options[sel.selectedIndex].textContent);
+  }
+  document.getElementById('filterStatus').textContent = parts.length ? parts.join(' · ') : 'Tất cả';
+
+  render();
+}
+
+/* ============== ROUTER ============== */
+function initRouter(){
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.addEventListener('click', () => navigate(btn.dataset.section));
+  });
+  document.querySelectorAll('[data-goto]').forEach(el => {
+    el.addEventListener('click', () => navigate(el.dataset.goto));
+  });
+}
+
+function navigate(section){
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.section === section));
+  document.querySelectorAll('.section-block').forEach(b => b.classList.toggle('show', b.id === 'block-' + section));
+  const map = {
+    'overview':'Tổng quan',
+    'sec-1':'1. Hiệu quả chiến dịch',
+    'sec-2':'2. Phân tích chi nhánh',
+    'sec-3':'3. Phân khúc khách hàng',
+    'sec-4':'4. Hành vi mua hàng',
+    'sec-5':'5. Campaign sinh nhật'
+  };
+  document.getElementById('bcSection').textContent = map[section] || '';
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+/* ============== MAIN ============== */
+async function main(){
+  try{
+    const rows = await loadData();
+    const tables = splitTables(rows);
+    RAW = tables;
+    DATA = JSON.parse(JSON.stringify(tables));
+    initFilters();
+    initRouter();
+    applyFilters();
+    document.getElementById('lastUpdate').textContent = 'Cập nhật ' + new Date().toLocaleString('vi-VN');
+    setTimeout(() => document.getElementById('loader').classList.add('hide'), 300);
+  } catch(err){
+    console.error(err);
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('loaderText').innerHTML = '<span style="color:#e3565b">Lỗi: ' + err.message + '</span>';
+  }
+}
+
+/* ============== RENDER ============== */
+function render(){
+  destroyCharts();
+  const {b1, b2, b3} = DATA;
+
+  // ===== OVERVIEW KPI =====
+  const totalSent = b1.length;
+  const totalCost = b1.reduce((s,x)=>s+x.chiPhi, 0);
+  const campOrders = b2.length;
+  const campRevenue = b2.reduce((s,x)=>s+x.giaTriDH, 0);
+  const totalRevenue = b3.reduce((s,x)=>s+x.doanhThu, 0);
+  const pctRev = totalRevenue > 0 ? campRevenue/totalRevenue*100 : 0;
+  const costRatio = campRevenue > 0 ? totalCost/campRevenue*100 : 0;
+
+  document.getElementById('kpiSent').textContent = fmtN(totalSent);
+  document.getElementById('kpiOrders').textContent = fmtN(campOrders);
+  document.getElementById('kpiRevenue').textContent = fmtVN(campRevenue);
+  document.getElementById('kpiRevenueSub').textContent = fmtPct(pctRev) + ' của tổng doanh thu (' + fmtVN(totalRevenue) + ')';
+  document.getElementById('kpiCostRatio').textContent = fmtPct(costRatio, 3);
+
+  document.getElementById('ov1Stat').textContent = new Set(b1.map(x=>x.camp)).size;
+  document.getElementById('ov2Stat').textContent = new Set(b1.map(x=>normBranch(x.branch))).size;
+  document.getElementById('ov3Stat').textContent = new Set(b1.map(x=>x.rfmGroup)).size;
+  document.getElementById('ov4Stat').textContent = fmtN(new Set(b3.map(x=>x.maKH)).size);
+  document.getElementById('ov5Stat').textContent = fmtN(b1.filter(x=>x.camp && x.camp.includes('VCSN')).length);
+
+  renderSec1(b1, b2, b3, totalRevenue);
+  renderSec2(b1, b2, b3);
+  renderSec3(b1, b2);
+  renderSec4(b1, b2, b3);
+  renderSec5(b1, b2, b3);
+}
+
+/* ============== SECTION 1 ============== */
+function shortCamp(c){
+  if (!c) return '';
+  if (c.includes('VCSN')) return 'VCSN Sinh nhật';
+  if (c.includes('LOYALTY')) return 'LOYALTY 150K';
+  return c.length > 20 ? c.substring(0,18) + '…' : c;
+}
+
+function renderSec1(b1, b2, b3, totalRev){
+  const camps = [...new Set(b1.map(x => x.camp))];
+  const rows = [];
+
+  camps.forEach(c => {
+    const sent = b1.filter(x => x.camp === c);
+    const sentUnique = new Set(sent.map(x => x.maKH)).size;
+    const cost = sent.reduce((s,x)=>s+x.chiPhi, 0);
+    const buy = b2.filter(x => x.camp === c);
+    const buyUnique = new Set(buy.map(x => x.maKH)).size;
+    const orders = buy.length;
+    const revenue = buy.reduce((s,x)=>s+x.giaTriDH, 0);
+    const cr = sentUnique ? buyUnique/sentUnique*100 : 0;
+    const atv = orders ? revenue/orders : 0;
+    const pctR = totalRev ? revenue/totalRev*100 : 0;
+    const costRatio = revenue ? cost/revenue*100 : 0;
+    const roi = cost ? revenue/cost : 0;
+    rows.push({c, sentUnique, buyUnique, cr, orders, atv, revenue, pctR, cost, costRatio, roi});
+  });
+
+  rows.sort((a,b) => b.revenue - a.revenue);
+
+  // Table
+  document.querySelector('#campTable tbody').innerHTML = rows.map(r => `
+    <tr>
+      <td><span class="tag ${r.c.includes('VCSN')?'tag-pink':'tag-blue'}">${r.c}</span></td>
+      <td class="num">${fmtN(r.sentUnique)}</td>
+      <td class="num">${fmtN(r.buyUnique)}</td>
+      <td class="num"><b style="color:${r.cr>=4?C.mintInk:C.violetInk}">${fmtPct(r.cr)}</b></td>
+      <td class="num">${fmtN(r.orders)}</td>
+      <td class="num">${fmtVN(r.atv)}</td>
+      <td class="num"><b>${fmtVN(r.revenue)}</b></td>
+      <td class="num">${fmtPct(r.pctR)}</td>
+      <td class="num">${fmtVN(r.cost)}</td>
+      <td class="num">${fmtPct(r.costRatio, 3)}</td>
+      <td class="num"><b style="color:${C.mintInk}">${r.roi.toFixed(0)}x</b></td>
+    </tr>
+  `).join('');
+
+  const labels = rows.map(r => shortCamp(r.c));
+
+  // CR chart
+  CHARTS.cr = new Chart(document.getElementById('chartCR'), {
+    type: 'bar',
+    data: { labels, datasets:[{
+      data: rows.map(r=>r.cr),
+      backgroundColor: rows.map((_,i)=>PALETTE[i%PALETTE.length]),
+      borderRadius: 12, borderSkipped: false, barThickness: 70
+    }]},
+    options: {
+      maintainAspectRatio:false, responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{ callbacks:{ label: ctx => 'CR: ' + ctx.parsed.y.toFixed(2) + '%' }},
+        datalabels:{
+          anchor:'end', align:'top', offset:4,
+          formatter: v => v.toFixed(2) + '%',
+          color: C.ink, font:{ weight:'700', size: 12 }
+        }
+      },
+      scales:{ x: xAxisNice, y: { ...yAxisNice, ticks:{...yAxisNice.ticks, callback: v => v+'%'}}}
+    }
+  });
+
+  // ATV chart
+  CHARTS.atv = new Chart(document.getElementById('chartATV'), {
+    type:'bar',
+    data:{ labels, datasets:[{
+      data: rows.map(r=>r.atv),
+      backgroundColor: rows.map((_,i)=>PALETTE[(i+1)%PALETTE.length]),
+      borderRadius: 12, borderSkipped: false, barThickness: 70
+    }]},
+    options:{
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label: ctx => 'ATV: ' + fmtVN(ctx.parsed.y)}},
+        datalabels:{ anchor:'end', align:'top', offset:4,
+          formatter: v => fmtVN(v), color: C.ink, font:{weight:'700', size:12} }
+      },
+      scales:{ x: xAxisNice, y: {...yAxisNice, ticks:{...yAxisNice.ticks, callback: v => fmtVN(v)}}}
+    }
+  });
+
+  // Funnel chart - chart.js horizontal stacked
+  const funnelLabels = ['SMS gửi', 'KH ra cửa hàng', 'KH mang về doanh thu'];
+  const funnelData = camps.map(c => {
+    const r = rows.find(x => x.c === c);
+    if (!r) return null;
+    return { c, data: [r.sentUnique, r.buyUnique, r.orders] };
+  }).filter(Boolean);
+
+  CHARTS.funnel1 = new Chart(document.getElementById('chartFunnel1'), {
+    type:'bar',
+    data:{
+      labels: funnelLabels,
+      datasets: funnelData.map((f, i) => ({
+        label: shortCamp(f.c),
+        data: f.data,
+        backgroundColor: PALETTE[i % PALETTE.length],
+        borderRadius: 10, barThickness: 30
+      }))
+    },
+    options:{
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top'},
+        tooltip:{callbacks:{label: ctx => ctx.dataset.label + ': ' + fmtN(ctx.parsed.x)}},
+        datalabels:{ anchor:'end', align:'end', offset:6,
+          formatter: v => fmtN(v), color: C.ink, font:{weight:'700', size:11} }
+      },
+      indexAxis: 'y',
+      scales:{ x:{ ...yAxisNice, ticks:{...yAxisNice.ticks, callback: v => fmtN(v)}}, y: xAxisNice }
+    }
+  });
+
+  // Contribution
+  const others = totalRev - rows.reduce((s,x)=>s+x.revenue, 0);
+  CHARTS.contribute = new Chart(document.getElementById('chartContribute'), {
+    type:'doughnut',
+    data:{
+      labels: [...rows.map(r=>shortCamp(r.c)), 'Nguồn khác'],
+      datasets:[{
+        data: [...rows.map(r=>r.revenue), Math.max(others,0)],
+        backgroundColor: [C.violetInk, C.pinkInk, '#e6e8f3'],
+        borderWidth: 0, hoverOffset: 6
+      }]
+    },
+    options:{
+      maintainAspectRatio:false, cutout:'66%',
+      plugins:{
+        legend:{position:'right'},
+        tooltip:{callbacks:{label: ctx => ctx.label+': '+fmtVN(ctx.parsed)+' ('+ (ctx.parsed/totalRev*100).toFixed(2)+'%)'}},
+        datalabels:{
+          color: '#fff',
+          formatter: (v, ctx) => {
+            const pct = v/totalRev*100;
+            return pct >= 4 ? pct.toFixed(1)+'%' : '';
+          },
+          font:{weight:'800', size: 12}
+        }
+      }
+    }
+  });
+
+  // ROI
+  CHARTS.roi = new Chart(document.getElementById('chartROI'), {
+    type:'bar',
+    data:{ labels, datasets:[{
+      data: rows.map(r=>r.roi),
+      backgroundColor: rows.map((_,i) => PALETTE[(i+2)%PALETTE.length]),
+      borderRadius: 12, borderSkipped: false, barThickness: 70
+    }]},
+    options:{
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label: ctx => '1.000đ SMS → ' + ctx.parsed.y.toFixed(0) + '.000đ doanh thu'}},
+        datalabels:{
+          anchor:'end', align:'top', offset:4,
+          formatter: v => v.toFixed(0)+'x',
+          color: C.mintInk, font:{weight:'800', size: 13}
+        }
+      },
+      scales:{ x: xAxisNice, y: {...yAxisNice, ticks:{...yAxisNice.ticks, callback: v => v+'x'}}}
+    }
+  });
+
+  // Insight
+  const best = rows.length ? [...rows].sort((a,b)=>b.cr-a.cr)[0] : null;
+  const total = rows.reduce((s,r)=>s+r.revenue, 0);
+  document.getElementById('insight1').innerHTML = !best ? 'Chưa có dữ liệu để phân tích với bộ lọc hiện tại.' : `
+    <span class="insight-title">📊 Insight chiến dịch</span>
+    Các chiến dịch SMS đóng góp <b>${fmtVN(total)}</b> doanh thu (~${fmtPct(total/totalRev*100)} tổng tháng).
+    Chiến dịch <b>${shortCamp(best.c)}</b> có CR cao nhất ở <b>${fmtPct(best.cr)}</b> với ROI <b>${best.roi.toFixed(0)}x</b> (mỗi 1.000đ chi SMS sinh ra ${best.roi.toFixed(0)}.000đ doanh thu).
+    Toàn bộ chiến dịch SMS có chi phí trên doanh thu dưới 1% — đầu tư SMS có hiệu quả rất cao.
+  `;
+}
+
+/* ============== SECTION 2 ============== */
+function renderSec2(b1, b2, b3){
+  // Gom theo chi nhánh (norm key)
+  const branchData = {};
+  b1.forEach(x => {
+    const k = normBranch(x.branch);
+    if(!k) return;
+    if(!branchData[k]) branchData[k] = {name: x.branch, sent:0, sentSet: new Set(), buy:0, rev:0, totalOrders:0, totalRev:0};
+    branchData[k].sent++;
+    branchData[k].sentSet.add(x.maKH);
+  });
+  b2.forEach(x => {
+    const k = normBranch(x.branch);
+    if(!branchData[k]) branchData[k] = {name: x.branch, sent:0, sentSet: new Set(), buy:0, rev:0, totalOrders:0, totalRev:0};
+    branchData[k].buy++;
+    branchData[k].rev += x.giaTriDH;
+  });
+  b3.forEach(x => {
+    const k = normBranch(x.tenCN);
+    if(!branchData[k]) branchData[k] = {name: x.tenCN, sent:0, sentSet: new Set(), buy:0, rev:0, totalOrders:0, totalRev:0};
+    branchData[k].totalOrders++;
+    branchData[k].totalRev += x.doanhThu;
+  });
+
+  const arr = Object.entries(branchData).map(([k,v]) => ({
+    key: k, name: v.name,
+    sent: v.sent,
+    sentUnique: v.sentSet.size,
+    buy: v.buy,
+    cr: v.sentSet.size ? v.buy/v.sentSet.size*100 : 0,
+    atv: v.buy ? v.rev/v.buy : 0,
+    rev: v.rev,
+    totalOrders: v.totalOrders,
+    aov: v.totalOrders ? v.totalRev/v.totalOrders : 0,
+    totalRev: v.totalRev,
+    pctSms: v.totalRev ? v.rev/v.totalRev*100 : 0
+  }));
+
+  // Scatter
+  CHARTS.scatter = new Chart(document.getElementById('chartScatter'), {
+    type:'bubble',
+    data:{ datasets:[{
+      data: arr.filter(x => x.sent > 0).map(x => ({x: x.sent, y: x.rev, r: Math.min(20, Math.max(4, x.cr*2)), name: x.name, cr: x.cr})),
+      backgroundColor: 'rgba(122,92,240,0.55)',
+      borderColor: C.violetInk, borderWidth: 1.5
+    }]},
+    options:{
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{ callbacks:{
+          label: ctx => {
+            const d = ctx.raw;
+            return [trimName(d.name), 'SMS: '+fmtN(d.x), 'DT: '+fmtVN(d.y), 'CR: '+d.cr.toFixed(2)+'%'];
+          }
+        }},
+        datalabels:{display:false}
+      },
+      scales:{
+        x:{...yAxisNice, title:{display:true, text:'Số SMS gửi', color:C.muted, font:{family:'Arial',size:11,weight:'700'}}, ticks:{...yAxisNice.ticks, callback: v => fmtN(v)}},
+        y:{...yAxisNice, title:{display:true, text:'Doanh thu từ SMS', color:C.muted, font:{family:'Arial',size:11,weight:'700'}}, ticks:{...yAxisNice.ticks, callback: v => fmtVN(v)}}
+      }
+    }
+  });
+
+  // Top sent
+  const topSent = [...arr].sort((a,b)=>b.sent-a.sent).slice(0,10);
+  CHARTS.branchSent = new Chart(document.getElementById('chartBranchSent'), {
+    type:'bar',
+    data:{
+      labels: topSent.map(x => trimName(x.name)),
+      datasets:[{ data: topSent.map(x => x.sent), backgroundColor: C.blueInk, borderRadius: 8, barThickness: 16 }]
+    },
+    options:{
+      indexAxis:'y', maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label: ctx => fmtN(ctx.parsed.x) + ' SMS'}},
+        datalabels:{
+          anchor:'end', align:'right', offset:4,
+          formatter: v => fmtN(v), color: C.ink, font:{weight:'700', size: 10.5}
+        }
+      },
+      scales:{ x:{...yAxisNice, ticks:{...yAxisNice.ticks}}, y:{...xAxisNice, ticks:{...xAxisNice.ticks, font:{family:'Arial', size:10}}}},
+      layout:{padding:{right:50}}
+    }
+  });
+
+  // Top revenue from camp
+  const topRev = [...arr].sort((a,b)=>b.rev-a.rev).slice(0,10);
+  CHARTS.branchRev = new Chart(document.getElementById('chartBranchRev'), {
+    type:'bar',
+    data:{
+      labels: topRev.map(x => trimName(x.name)),
+      datasets:[{ data: topRev.map(x => x.rev), backgroundColor: C.violetInk, borderRadius: 8, barThickness: 16 }]
+    },
+    options:{
+      indexAxis:'y', maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label: ctx => fmtVN(ctx.parsed.x)}},
+        datalabels:{
+          anchor:'end', align:'right', offset:4,
+          formatter: v => fmtVN(v), color: C.ink, font:{weight:'700', size: 10.5}
+        }
+      },
+      scales:{ x:{...yAxisNice, ticks:{...yAxisNice.ticks, callback: v => fmtVN(v)}}, y:{...xAxisNice, ticks:{...xAxisNice.ticks, font:{family:'Arial', size:10}}}},
+      layout:{padding:{right:70}}
+    }
+  });
+
+  // Bảng đối chiếu chi tiết
+  const tableRows = [...arr].sort((a,b)=>b.rev-a.rev).slice(0,20);
+  document.querySelector('#branchTable tbody').innerHTML = tableRows.map(r => `
+    <tr>
+      <td><b>${trimName(r.name)}</b></td>
+      <td class="num">${fmtN(r.sent)}</td>
+      <td class="num">${fmtN(r.buy)}</td>
+      <td class="num"><b style="color:${r.cr>=5?C.mintInk:r.cr>=3?C.violetInk:C.muted}">${fmtPct(r.cr)}</b></td>
+      <td class="num">${fmtVN(r.atv)}</td>
+      <td class="num"><b>${fmtVN(r.rev)}</b></td>
+      <td class="num">${fmtN(r.totalOrders)}</td>
+      <td class="num">${fmtVN(r.aov)}</td>
+      <td class="num">${fmtVN(r.totalRev)}</td>
+      <td class="num"><b style="color:${r.pctSms>=20?C.mintInk:C.muted}">${fmtPct(r.pctSms)}</b></td>
+    </tr>
+  `).join('');
+
+  const top = tableRows[0];
+  document.getElementById('insight2').innerHTML = !top ? 'Chưa có dữ liệu chi nhánh.' : `
+    <span class="insight-title">📍 Insight chi nhánh</span>
+    Chi nhánh <b>${trimName(top.name)}</b> dẫn đầu doanh thu từ SMS với <b>${fmtVN(top.rev)}</b>, chiếm <b>${fmtPct(top.pctSms)}</b> tổng doanh thu chi nhánh.
+    CR tại đây đạt <b>${fmtPct(top.cr)}</b>, ATV <b>${fmtVN(top.atv)}</b>.
+    Các chi nhánh nhận nhiều SMS nhưng CR thấp cần xem lại danh sách RFM target và chất lượng phục vụ tại điểm bán.
+  `;
+}
+
+/* ============== SECTION 3 ============== */
+function renderSec3(b1, b2){
+  // Pool theo RFM
+  const sentByRfm = {};
+  const khRfm = {};
+  b1.forEach(x => {
+    const g = x.rfmGroup || 'Khác';
+    if(!sentByRfm[g]) sentByRfm[g] = new Set();
+    sentByRfm[g].add(x.maKH);
+    khRfm[x.maKH] = g;
+  });
+
+  const buyByRfm = {};
+  b2.forEach(x => {
+    const g = khRfm[x.maKH] || 'Khác';
+    if(!buyByRfm[g]) buyByRfm[g] = {orders:0, rev:0, buyers: new Set()};
+    buyByRfm[g].orders++;
+    buyByRfm[g].rev += x.giaTriDH;
+    buyByRfm[g].buyers.add(x.maKH);
+  });
+
+  const groups = Object.keys(sentByRfm).sort((a,b) => sentByRfm[b].size - sentByRfm[a].size);
+  const rows = groups.map(g => {
+    const sent = sentByRfm[g].size;
+    const buy = buyByRfm[g]?.buyers.size || 0;
+    const orders = buyByRfm[g]?.orders || 0;
+    const rev = buyByRfm[g]?.rev || 0;
+    return { g, sent, buy, cr: sent?buy/sent*100:0, orders, atv: orders?rev/orders:0, rev, rpm: sent?rev/sent:0 };
+  });
+  const totalRev = rows.reduce((s,r)=>s+r.rev,0);
+
+  // 3.1 Stacked sent vs buy
+  CHARTS.rfmStack = new Chart(document.getElementById('chartRfmStack'), {
+    type:'bar',
+    data:{
+      labels: rows.map(r=>r.g),
+      datasets:[
+        { label:'KH gửi SMS', data: rows.map(r=>r.sent - r.buy), backgroundColor: '#e6e8f3', borderRadius: 6, stack:'s', barThickness: 22 },
+        { label:'KH đã mua', data: rows.map(r=>r.buy), backgroundColor: C.mintInk, borderRadius: 6, stack:'s', barThickness: 22 }
+      ]
+    },
+    options:{
+      indexAxis:'y', maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top'},
+        tooltip:{callbacks:{label: ctx => ctx.dataset.label + ': ' + fmtN(ctx.parsed.x)}},
+        datalabels:{
+          color:'#fff',
+          formatter: (v, ctx) => v >= 200 ? fmtN(v) : '',
+          font:{weight:'700', size:10.5}
+        }
+      },
+      scales:{ x:{...yAxisNice, stacked:true, ticks:{...yAxisNice.ticks}}, y:{...xAxisNice, stacked:true} }
+    }
+  });
+
+  // ATV by RFM
+  CHARTS.rfmATV = new Chart(document.getElementById('chartRfmATV'), {
+    type:'bar',
+    data:{ labels: rows.map(r=>r.g),
+      datasets:[{ data: rows.map(r=>r.atv),
+        backgroundColor: rows.map((_,i)=>PALETTE[i%PALETTE.length]),
+        borderRadius: 10, barThickness: 22 }]},
+    options:{
+      indexAxis:'y', maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label: ctx => 'ATV: '+fmtVN(ctx.parsed.x)}},
+        datalabels:{
+          anchor:'end', align:'right', offset:4,
+          formatter: v => v > 0 ? fmtVN(v) : '',
+          color: C.ink, font:{weight:'700', size:10.5}
+        }
+      },
+      scales:{ x:{...yAxisNice, ticks:{...yAxisNice.ticks, callback: v => fmtVN(v)}}, y:{...xAxisNice} },
+      layout:{padding:{right:60}}
+    }
+  });
+
+  // CR by RFM
+  CHARTS.rfmCR = new Chart(document.getElementById('chartRfmCR'), {
+    type:'bar',
+    data:{ labels: rows.map(r=>r.g),
+      datasets:[{ data: rows.map(r=>r.cr),
+        backgroundColor: rows.map(r=> r.cr>=5?C.mintInk: r.cr>=3?C.violetInk: r.cr>=1?C.amberInk: '#cfd2e0'),
+        borderRadius: 10, barThickness: 22 }]},
+    options:{
+      indexAxis:'y', maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label: ctx => 'CR: '+ctx.parsed.x.toFixed(2)+'%'}},
+        datalabels:{
+          anchor:'end', align:'right', offset:4,
+          formatter: v => v.toFixed(2)+'%',
+          color: C.ink, font:{weight:'700', size:10.5}
+        }
+      },
+      scales:{ x:{...yAxisNice, ticks:{...yAxisNice.ticks, callback: v => v+'%'}}, y:{...xAxisNice} },
+      layout:{padding:{right:55}}
+    }
+  });
+
+  // Table
+  document.querySelector('#rfmTable tbody').innerHTML = rows.sort((a,b)=>b.rev-a.rev).map(r => `
+    <tr>
+      <td><b>${r.g}</b></td>
+      <td class="num">${fmtN(r.sent)}</td>
+      <td class="num">${fmtN(r.buy)}</td>
+      <td class="num"><b style="color:${r.cr>=5?C.mintInk:r.cr>=3?C.violetInk:C.muted}">${fmtPct(r.cr)}</b></td>
+      <td class="num">${fmtN(r.orders)}</td>
+      <td class="num">${fmtVN(r.atv)}</td>
+      <td class="num"><b>${fmtVN(r.rev)}</b></td>
+      <td class="num">${totalRev?fmtPct(r.rev/totalRev*100):'—'}</td>
+      <td class="num">${fmtVN(r.rpm)}</td>
+    </tr>
+  `).join('');
+
+  // Gender
+  const genderMap = {};
+  b2.forEach(x => {
+    const g = b1.find(y => y.maKH === x.maKH)?.gender || 'Không xác định';
+    if(!genderMap[g]) genderMap[g] = {orders:0, rev:0};
+    genderMap[g].orders++;
+    genderMap[g].rev += x.giaTriDH;
+  });
+  const gLabels = Object.keys(genderMap);
+  const gTotal = gLabels.reduce((s,k)=>s+genderMap[k].rev, 0);
+  CHARTS.gender = new Chart(document.getElementById('chartGender'), {
+    type:'doughnut',
+    data:{ labels: gLabels, datasets:[{
+      data: gLabels.map(g => genderMap[g].rev),
+      backgroundColor:[C.pinkInk, C.blueInk, C.amberInk], borderWidth: 0 }]},
+    options:{ maintainAspectRatio:false, cutout:'66%',
+      plugins:{
+        legend:{position:'right'},
+        tooltip:{callbacks:{label: ctx => ctx.label+': '+fmtVN(ctx.parsed)+' ('+genderMap[ctx.label].orders+' đơn)'}},
+        datalabels:{
+          color:'#fff',
+          formatter: (v) => gTotal ? (v/gTotal*100).toFixed(1) + '%' : '',
+          font:{weight:'800', size:13}
+        }
+      }
+    }
+  });
+
+  // RPM
+  const rpmSorted = [...rows].sort((a,b)=>b.rpm-a.rpm);
+  CHARTS.rfmRPM = new Chart(document.getElementById('chartRfmRPM'), {
+    type:'bar',
+    data:{ labels: rpmSorted.map(r=>r.g),
+      datasets:[{ data: rpmSorted.map(r=>r.rpm),
+        backgroundColor: rpmSorted.map((_,i)=>PALETTE[i%PALETTE.length]),
+        borderRadius: 10, barThickness: 22 }]},
+    options:{
+      indexAxis:'y', maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label: ctx => 'RPM: '+fmtVN(ctx.parsed.x)}},
+        datalabels:{
+          anchor:'end', align:'right', offset:4,
+          formatter: v => v > 0 ? fmtVN(v) : '',
+          color: C.ink, font:{weight:'700', size:10.5}
+        }
+      },
+      scales:{ x:{...yAxisNice, ticks:{...yAxisNice.ticks, callback: v => fmtVN(v)}}, y:{...xAxisNice}},
+      layout:{padding:{right:60}}
+    }
+  });
+
+  const top = rows[0];
+  const bestRPM = rpmSorted[0];
+  document.getElementById('insight3').innerHTML = !top ? 'Chưa có dữ liệu RFM.' : `
+    <span class="insight-title">👥 Insight phân khúc</span>
+    Nhóm <b>${top.g}</b> đem về doanh thu lớn nhất <b>${fmtVN(top.rev)}</b> với ATV <b>${fmtVN(top.atv)}</b>.
+    Xét theo <b>RPM</b> (doanh thu / 1 SMS gửi), nhóm <b>${bestRPM.g}</b> hiệu quả nhất với <b>${fmtVN(bestRPM.rpm)}/SMS</b> —
+    nên ưu tiên ngân sách SMS cho nhóm này. Khách hàng nữ chiếm tuyệt đại đa số — phù hợp định vị brand thời trang nữ.
+  `;
+}
+
+/* ============== SECTION 4 ============== */
+function renderSec4(b1, b2, b3){
+  // Tần suất
+  const freq = {};
+  b3.forEach(x => {
+    if(!freq[x.maKH]) freq[x.maKH] = new Set();
+    if(x.maDH) freq[x.maKH].add(x.maDH);
+  });
+  const buckets = {'1 lần':0, '2 lần':0, '3 lần':0, '≥4 lần':0};
+  let totalCust = 0;
+  Object.values(freq).forEach(s => {
+    const n = s.size; if(!n) return;
+    totalCust++;
+    if(n===1) buckets['1 lần']++;
+    else if(n===2) buckets['2 lần']++;
+    else if(n===3) buckets['3 lần']++;
+    else buckets['≥4 lần']++;
+  });
+
+  const totalOrders = new Set(b3.map(x=>x.maDH).filter(Boolean)).size;
+  const totalRev = b3.reduce((s,x)=>s+x.doanhThu, 0);
+  const atv = totalOrders ? totalRev/totalOrders : 0;
+  const voucherUsed = new Set(b2.map(x=>x.maDH).filter(Boolean)).size;
+  const voucherSent = b1.length;
+  const useRate = voucherSent ? voucherUsed/voucherSent*100 : 0;
+  const rpc = totalCust ? totalRev/totalCust : 0;
+
+  document.getElementById('bhCustomers').textContent = fmtN(totalCust);
+  document.getElementById('bhATV').textContent = fmtVN(atv);
+  document.getElementById('bhVoucher').textContent = fmtN(voucherUsed);
+  document.getElementById('bhVoucherSub').textContent = fmtPct(useRate,2) + ' của ' + fmtN(voucherSent) + ' voucher gửi';
+  document.getElementById('bhRPC').textContent = fmtVN(rpc);
+
+  // By day
+  const dayMap = {};
+  b3.forEach(x => {
+    const d = parseDate(x.ngayMua); if(!d) return;
+    const key = d.getDate();
+    dayMap[key] = (dayMap[key]||0) + x.doanhThu;
+  });
+  const days = Object.keys(dayMap).map(Number).sort((a,b)=>a-b);
+  CHARTS.byDay = new Chart(document.getElementById('chartByDay'), {
+    type:'line',
+    data:{ labels: days.map(d=>'Ngày '+d),
+      datasets:[{ data: days.map(d=>dayMap[d]),
+        borderColor: C.violetInk, backgroundColor: 'rgba(122,92,240,0.10)',
+        fill:true, tension: 0.4, pointRadius: 4, pointHoverRadius: 6,
+        pointBackgroundColor: C.violetInk, borderWidth: 2.5 }]},
+    options:{ maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label: ctx => fmtVN(ctx.parsed.y)}},
+        datalabels:{
+          align:'top', offset:8,
+          formatter: (v, ctx) => {
+            // chỉ hiện datalabel ở các đỉnh cao
+            const data = ctx.dataset.data;
+            const max = Math.max(...data);
+            return v >= max * 0.7 ? fmtVN(v) : '';
+          },
+          color: C.violetInk, font:{weight:'700', size:10.5}
+        }
+      },
+      scales:{ x: xAxisNice, y: {...yAxisNice, ticks:{...yAxisNice.ticks, callback: v => fmtVN(v)}}}
+    }
+  });
+
+  // Frequency
+  CHARTS.freq = new Chart(document.getElementById('chartFreq'), {
+    type:'doughnut',
+    data:{ labels: Object.keys(buckets),
+      datasets:[{ data: Object.values(buckets),
+        backgroundColor:[C.blue, C.violetInk, C.pinkInk, C.mintInk], borderWidth:0 }]},
+    options:{ maintainAspectRatio:false, cutout:'66%',
+      plugins:{
+        legend:{position:'right'},
+        tooltip:{callbacks:{label: ctx => ctx.label+': '+fmtN(ctx.parsed)+' KH ('+(ctx.parsed/totalCust*100).toFixed(1)+'%)'}},
+        datalabels:{
+          color: ctx => ctx.dataIndex === 0 ? C.ink : '#fff',
+          formatter: v => totalCust && v/totalCust*100 >= 3 ? (v/totalCust*100).toFixed(1)+'%' : '',
+          font:{weight:'800', size:12}
+        }
+      }
+    }
+  });
+
+  // AOV distribution
+  const ranges = [
+    {label:'<500K', min:0, max:500000},
+    {label:'500K-1tr', min:500000, max:1000000},
+    {label:'1-2tr', min:1000000, max:2000000},
+    {label:'2-3tr', min:2000000, max:3000000},
+    {label:'>3tr', min:3000000, max:Infinity}
+  ];
+  const distCount = ranges.map(r => b3.filter(x => x.doanhThu >= r.min && x.doanhThu < r.max).length);
+  CHARTS.aov = new Chart(document.getElementById('chartAOVDist'), {
+    type:'bar',
+    data:{ labels: ranges.map(r=>r.label),
+      datasets:[{ data: distCount,
+        backgroundColor: [C.blue, C.violetInk, C.pinkInk, C.mintInk, C.amberInk],
+        borderRadius: 12, barThickness: 50 }]},
+    options:{ maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label: ctx => fmtN(ctx.parsed.y)+' đơn'}},
+        datalabels:{
+          anchor:'end', align:'top', offset:4,
+          formatter: v => fmtN(v),
+          color: C.ink, font:{weight:'700', size:11}
+        }
+      },
+      scales:{ x: xAxisNice, y: {...yAxisNice, ticks:{...yAxisNice.ticks}}}
+    }
+  });
+
+  // By DOW
+  const dowMap = [0,0,0,0,0,0,0];
+  b3.forEach(x => {
+    const d = parseDate(x.ngayMua); if(!d) return;
+    dowMap[d.getDay()] += x.doanhThu;
+  });
+  const dowOrder = [1,2,3,4,5,6,0];
+  const dowLabels = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7','CN'];
+  CHARTS.dow = new Chart(document.getElementById('chartByDow'), {
+    type:'bar',
+    data:{ labels: dowLabels, datasets:[{
+      data: dowOrder.map(i=>dowMap[i]),
+      backgroundColor: dowOrder.map((_,i)=> i>=4 ? C.pinkInk : C.blueInk),
+      borderRadius: 12, borderSkipped: false, barThickness: 36 }]},
+    options:{ maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label: ctx => fmtVN(ctx.parsed.y)}},
+        datalabels:{
+          anchor:'end', align:'top', offset:4,
+          formatter: v => fmtVN(v),
+          color: C.ink, font:{weight:'700', size:10.5}
+        }
+      },
+      scales:{ x: xAxisNice, y: {...yAxisNice, ticks:{...yAxisNice.ticks, callback: v => fmtVN(v)}}}
+    }
+  });
+
+  // Voucher
+  CHARTS.voucher = new Chart(document.getElementById('chartVoucher'), {
+    type:'doughnut',
+    data:{ labels:['Đã dùng', 'Chưa dùng'],
+      datasets:[{ data:[voucherUsed, Math.max(voucherSent-voucherUsed,0)],
+        backgroundColor:[C.mintInk, '#e6e8f3'], borderWidth: 0 }]},
+    options:{ maintainAspectRatio:false, cutout:'70%',
+      plugins:{
+        legend:{position:'right'},
+        tooltip:{callbacks:{label: ctx => ctx.label+': '+fmtN(ctx.parsed)+' ('+(ctx.parsed/voucherSent*100).toFixed(2)+'%)'}},
+        datalabels:{
+          color:'#fff',
+          formatter: v => voucherSent ? (v/voucherSent*100).toFixed(2)+'%' : '',
+          font:{weight:'800', size:13}
+        }
+      }
+    }
+  });
+
+  const repeat = totalCust ? (buckets['2 lần']+buckets['3 lần']+buckets['≥4 lần'])/totalCust*100 : 0;
+  const peakIdx = dowMap.map((v,i)=>[i,v]).sort((a,b)=>b[1]-a[1])[0]?.[0];
+  const dowName = ['CN','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'][peakIdx];
+  document.getElementById('insight4').innerHTML = `
+    <span class="insight-title">🛍️ Insight hành vi</span>
+    <b>${fmtN(totalCust)}</b> KH unique mua trong kỳ, ATV <b>${fmtVN(atv)}</b>, chi tiêu TB/KH <b>${fmtVN(rpc)}</b>.
+    Tỷ lệ KH quay lại (mua ≥ 2 lần): <b>${fmtPct(repeat,1)}</b> — còn nhiều dư địa tăng tần suất.
+    Ngày bán chạy nhất: <b>${dowName}</b>. Tỷ lệ voucher SMS được dùng: <b>${fmtPct(useRate,2)}</b>.
+  `;
+}
+
+/* ============== SECTION 5 ============== */
+function renderSec5(b1, b2, b3){
+  const CAMP = 'VCSN05.26_OFFLINE_BD0526';
+  const sent = b1.filter(x => x.camp === CAMP);
+  const sentKH = new Set(sent.map(x => x.maKH));
+  const totalSent = sentKH.size;
+
+  const b3KH = new Set(b3.map(x => x.maKH));
+  const gotShirt = new Set([...sentKH].filter(k => b3KH.has(k)));
+  const vcsnRedeem = b2.filter(x => x.camp === CAMP);
+  const voucherKH = new Set(vcsnRedeem.map(x => x.maKH));
+  const both = new Set([...gotShirt].filter(k => voucherKH.has(k)));
+  const onlyShirt = new Set([...gotShirt].filter(k => !voucherKH.has(k)));
+  const noResp = new Set([...sentKH].filter(k => !b3KH.has(k)));
+
+  const revBoth = b3.filter(x => both.has(x.maKH)).reduce((s,x)=>s+x.doanhThu, 0);
+  const revOnlyShirt = b3.filter(x => onlyShirt.has(x.maKH)).reduce((s,x)=>s+x.doanhThu, 0);
+
+  document.getElementById('vcsnSent').textContent = fmtN(totalSent);
+  document.getElementById('vcsnShirt').textContent = fmtN(gotShirt.size);
+  document.getElementById('vcsnShirtSub').textContent = totalSent ? fmtPct(gotShirt.size/totalSent*100)+' trên tổng gửi' : '—';
+  document.getElementById('vcsnVoucher').textContent = fmtN(voucherKH.size);
+  document.getElementById('vcsnVoucherSub').textContent = totalSent ? fmtPct(voucherKH.size/totalSent*100)+' trên tổng gửi' : '—';
+  document.getElementById('vcsnBoth').textContent = fmtN(both.size);
+  document.getElementById('vcsnBothSub').textContent = gotShirt.size ? fmtPct(both.size/gotShirt.size*100)+' của KH ra cửa hàng' : '—';
+
+  // Funnel
+  const fdata = [
+    { label:'1. Gửi SMS sinh nhật', val: totalSent, color: C.blueInk, pct: 100 },
+    { label:'2. Ra cửa hàng (nhận áo)', val: gotShirt.size, color: C.violetInk, pct: totalSent?gotShirt.size/totalSent*100:0 },
+    { label:'3. Dùng voucher giảm giá', val: voucherKH.size, color: C.pinkInk, pct: totalSent?voucherKH.size/totalSent*100:0 },
+    { label:'4. Dùng CẢ 2 điều kiện', val: both.size, color: C.mintInk, pct: totalSent?both.size/totalSent*100:0 }
+  ];
+  document.getElementById('vcsnFunnel').innerHTML = fdata.map(f => `
+    <div class="funnel-step">
+      <div class="funnel-label">${f.label}</div>
+      <div class="funnel-bar-wrap">
+        <div class="funnel-bar" style="width:${f.pct.toFixed(1)}%; background:${f.color}">
+          ${f.pct >= 8 ? fmtN(f.val) + ' KH' : ''}
+        </div>
+      </div>
+      <div class="funnel-meta"><b>${fmtN(f.val)}</b> · ${f.pct.toFixed(2)}%</div>
+    </div>
+  `).join('');
+
+  // Split
+  CHARTS.vcsnSplit = new Chart(document.getElementById('chartVcsnSplit'), {
+    type:'doughnut',
+    data:{ labels:['Dùng cả 2 ĐK', 'Chỉ nhận áo', 'Không phản hồi'],
+      datasets:[{ data:[both.size, onlyShirt.size, noResp.size],
+        backgroundColor:[C.mintInk, C.amberInk, '#e6e8f3'], borderWidth:0 }]},
+    options:{ maintainAspectRatio:false, cutout:'66%',
+      plugins:{
+        legend:{position:'right'},
+        tooltip:{callbacks:{label: ctx => ctx.label+': '+fmtN(ctx.parsed)+' ('+(ctx.parsed/totalSent*100).toFixed(2)+'%)'}},
+        datalabels:{
+          color: ctx => ctx.dataIndex === 2 ? C.ink : '#fff',
+          formatter: v => totalSent ? (v/totalSent*100).toFixed(1)+'%' : '',
+          font:{weight:'800', size:12}
+        }
+      }
+    }
+  });
+
+  // ATV compare
+  const atvBoth = both.size ? revBoth/both.size : 0;
+  const atvOnly = onlyShirt.size ? revOnlyShirt/onlyShirt.size : 0;
+  CHARTS.vcsnRev = new Chart(document.getElementById('chartVcsnRev'), {
+    type:'bar',
+    data:{ labels:['Dùng cả 2 ĐK', 'Chỉ nhận áo thun'],
+      datasets:[
+        { label:'Tổng doanh thu', data:[revBoth, revOnlyShirt],
+          backgroundColor:[C.mintInk, C.amberInk], borderRadius: 10, barThickness: 60, yAxisID:'y' },
+        { label:'Chi tiêu TB / KH', data:[atvBoth, atvOnly],
+          backgroundColor:[C.violetInk, C.pinkInk], borderRadius: 10, barThickness: 24, yAxisID:'y1' }
+      ]},
+    options:{ maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top'},
+        tooltip:{callbacks:{label: ctx => ctx.dataset.label+': '+fmtVN(ctx.parsed.y)}},
+        datalabels:{
+          anchor:'end', align:'top', offset:4,
+          formatter: v => fmtVN(v),
+          color: C.ink, font:{weight:'700', size:10.5}
+        }
+      },
+      scales:{ x: xAxisNice,
+        y:{...yAxisNice, position:'left', ticks:{...yAxisNice.ticks, callback: v => fmtVN(v)}},
+        y1:{position:'right', grid:{display:false}, border:{display:false}, ticks:{callback: v => fmtVN(v), padding:10, font:{family:'Arial',size:10.5}}}
+      }
+    }
+  });
+
+  // Top branch VCSN
+  const vcsnBranchMap = {};
+  vcsnRedeem.forEach(x => {
+    const k = normBranch(x.branch);
+    if(!vcsnBranchMap[k]) vcsnBranchMap[k] = {name: x.branch, orders:0, rev:0};
+    vcsnBranchMap[k].orders++;
+    vcsnBranchMap[k].rev += x.giaTriDH;
+  });
+  const topVcsn = Object.values(vcsnBranchMap).sort((a,b)=>b.orders-a.orders).slice(0,10);
+  CHARTS.vcsnBranch = new Chart(document.getElementById('chartVcsnBranch'), {
+    type:'bar',
+    data:{ labels: topVcsn.map(x => trimName(x.name)),
+      datasets:[
+        { label:'Số đơn VCSN', data: topVcsn.map(x=>x.orders), backgroundColor: C.amberInk, borderRadius: 8, barThickness: 14, yAxisID:'y' },
+        { label:'Doanh thu', data: topVcsn.map(x=>x.rev), backgroundColor: C.pinkInk, borderRadius: 8, barThickness: 14, yAxisID:'y1' }
+      ]},
+    options:{
+      indexAxis:'y', maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top'},
+        tooltip:{callbacks:{label: ctx => ctx.dataset.label+': '+(ctx.dataset.label==='Doanh thu'?fmtVN(ctx.parsed.x):fmtN(ctx.parsed.x))}},
+        datalabels:{
+          anchor:'end', align:'right', offset:4,
+          formatter: (v, ctx) => ctx.dataset.label === 'Doanh thu' ? fmtVN(v) : fmtN(v),
+          color: C.ink, font:{weight:'700', size:9.5}
+        }
+      },
+      scales:{
+        x:{...yAxisNice, position:'top', ticks:{...yAxisNice.ticks}},
+        x1:{display:false},
+        y:{...xAxisNice, ticks:{...xAxisNice.ticks, font:{family:'Arial', size:10}}}
+      },
+      layout:{padding:{right:70}}
+    }
+  });
+
+  const liftPct = atvOnly > 0 ? (atvBoth/atvOnly-1)*100 : 0;
+  document.getElementById('insight5').innerHTML = !totalSent ? 'Không có dữ liệu chiến dịch VCSN với bộ lọc hiện tại.' : `
+    <span class="insight-title">🎂 Insight sinh nhật</span>
+    Đã gửi <b>${fmtN(totalSent)}</b> SMS sinh nhật. <b>${fmtN(gotShirt.size)}</b> KH (${fmtPct(gotShirt.size/totalSent*100)}) ra cửa hàng nhận áo thun.
+    Trong đó <b>${fmtN(both.size)}</b> KH dùng cả 2 điều kiện (${fmtPct(both.size/Math.max(gotShirt.size,1)*100)} của nhóm ra CH).
+    Chi tiêu trung bình nhóm dùng cả 2 ĐK <b>${fmtVN(atvBoth)}</b>, cao hơn <b>${liftPct.toFixed(0)}%</b> so với nhóm chỉ nhận áo (<b>${fmtVN(atvOnly)}</b>) — voucher kích thích chi tiêu mạnh.
+    <br/><br/>
+    <b>Đề xuất:</b> Còn <b>${fmtN(onlyShirt.size)}</b> KH đã nhận áo nhưng chưa dùng voucher — nên gửi SMS remind voucher trong những ngày cuối kỳ áp dụng.
+  `;
+}
+
+/* ============== START ============== */
+checkAuth();
+</script>
+</body>
+</html>
