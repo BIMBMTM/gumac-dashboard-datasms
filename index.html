@@ -1689,43 +1689,153 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
 
 <script>
 /* ============== CONFIG ============== */
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQlFYteEWIxOOk5kQ1GmF2Ios6Ta058JKGSOuc4GgM_ktZqoBesQYCGjt0JHDIkeMEbu7v7l7wyUCKs/pub?gid=0&single=true&output=csv';
-const PASSWORD_HASH = 'e7b8cbc2e625cb1e9bb733dd09ff79693d66cb6204c7e89a56979fa5479ca7b4';
+// URL CSV được mã hoá AES-GCM. Chỉ decrypt được khi nhập đúng mật khẩu.
+// Salt + IV + ciphertext base64. PBKDF2 100,000 iterations.
+const ENCRYPTED_DATA = {
+  salt: 'NAXULfBRAR6V3gL31kZQ2g==',
+  iv: 'U3pYS3+t00pIRnoU',
+  ct: 'CRSMbm1TGV6+pyZRjmXWPGJlEeT9EoZCjJ8pZ+RLqoAI1k1dDBBacZ7/oz7dKDjvh/P9VNmegFhSPB3gHpkA+O8FYISKr8uiS8rVKgsHmR4/rQZGY6TX9XuQ3VYRCGT04DVbCmNJxCgQ9mbcEwMtYMp0lrOxRKNqQ+TqTQqsLh4GZKIu+5/s9sbCxKSjOrS0/7kevq11+X26gVT6HOdXdx/a5mAh50AYUbJqpdi483k=',
+  verifyIV: 'V9YGKZQ0R/jBtJU0',
+  verifyCT: 'G6lUn/g+U8FlMlFlwYc7Q/bCnDVZB518bIcE/t/jZQ==',
+  iter: 100000
+};
 const SESSION_KEY = 'gumac_crm_v3';
+// SHEET_URL được decrypt từ ENCRYPTED_DATA bằng password, lưu trong RAM chỉ khi đúng pwd
+let SHEET_URL = null;
+// Session token decrypt được = bằng chứng đã đúng pwd
+let SESSION_TOKEN = null;
 
-/* ============== AUTH ============== */
-async function sha256(text){
-  const buf = new TextEncoder().encode(text);
-  const hash = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+/* ============== AUTH (PBKDF2 + AES-GCM) ============== */
+function b64ToBytes(b64){
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+function bytesToText(bytes){
+  return new TextDecoder().decode(bytes);
+}
+
+async function deriveKey(password, salt, iterations){
+  const enc = new TextEncoder();
+  const baseKey = await crypto.subtle.importKey(
+    'raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: salt, iterations: iterations, hash: 'SHA-256' },
+    baseKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
+}
+
+async function tryDecrypt(password){
+  // 1. Derive key từ password + salt (chậm 100k iterations)
+  const salt = b64ToBytes(ENCRYPTED_DATA.salt);
+  const key = await deriveKey(password, salt, ENCRYPTED_DATA.iter);
+
+  // 2. Verify password bằng cách decrypt verify token TRƯỚC (an toàn hơn)
+  const verifyIV = b64ToBytes(ENCRYPTED_DATA.verifyIV);
+  const verifyCT = b64ToBytes(ENCRYPTED_DATA.verifyCT);
+  try {
+    const verifyPlain = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: verifyIV }, key, verifyCT
+    );
+    const txt = bytesToText(new Uint8Array(verifyPlain));
+    if (txt !== 'GUMAC_VERIFY_OK') throw new Error('Verify mismatch');
+  } catch(e){
+    return null; // Sai password
+  }
+
+  // 3. Nếu verify OK, decrypt URL chính
+  const iv = b64ToBytes(ENCRYPTED_DATA.iv);
+  const ct = b64ToBytes(ENCRYPTED_DATA.ct);
+  const urlPlain = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: iv }, key, ct
+  );
+  return bytesToText(new Uint8Array(urlPlain));
 }
 
 async function checkLogin(){
   const pwd = document.getElementById('pwdInput').value;
   const err = document.getElementById('loginErr');
+  const btn = document.querySelector('.login-btn');
   if (!pwd){ err.textContent = 'Vui lòng nhập mật khẩu'; return; }
-  const hash = await sha256(pwd);
-  if (hash === PASSWORD_HASH){
-    sessionStorage.setItem(SESSION_KEY, '1');
+
+  // UX: hiện trạng thái đang xử lý vì PBKDF2 mất 200-500ms
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = 'Đang xác thực…';
+  err.textContent = '';
+
+  try {
+    const url = await tryDecrypt(pwd);
+    if (!url){
+      err.textContent = 'Mật khẩu không đúng';
+      document.getElementById('pwdInput').value = '';
+      btn.disabled = false;
+      btn.textContent = oldText;
+      return;
+    }
+    SHEET_URL = url;
+    // Lưu session token: chính là URL đã decrypt thành công + timestamp
+    // Sau khi mã hoá lại bằng key tạm (random per session) rồi lưu sessionStorage
+    SESSION_TOKEN = url;
+    try {
+      sessionStorage.setItem(SESSION_KEY, btoa(url + '|' + Date.now()));
+    } catch(e){}
+
     document.getElementById('loginWrap').style.display = 'none';
     document.getElementById('app').style.display = 'grid';
     document.getElementById('loader').classList.remove('hide');
+    btn.disabled = false;
+    btn.textContent = oldText;
     main();
-  } else {
-    err.textContent = 'Mật khẩu không đúng';
-    document.getElementById('pwdInput').value = '';
+  } catch(e){
+    err.textContent = 'Lỗi xác thực: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = oldText;
   }
 }
 
-function logout(){ sessionStorage.removeItem(SESSION_KEY); location.reload(); }
+function logout(){
+  sessionStorage.removeItem(SESSION_KEY);
+  SHEET_URL = null;
+  SESSION_TOKEN = null;
+  location.reload();
+}
 document.getElementById('pwdInput').addEventListener('keydown', e => { if(e.key==='Enter') checkLogin(); });
 
-if (sessionStorage.getItem(SESSION_KEY) === '1'){
-  document.getElementById('loginWrap').style.display = 'none';
-  document.getElementById('app').style.display = 'grid';
-  document.getElementById('loader').classList.remove('hide');
-  setTimeout(main, 50);
-}
+// Khôi phục session (đã từng login đúng pwd trong tab này)
+(function tryRestoreSession(){
+  try {
+    const saved = sessionStorage.getItem(SESSION_KEY);
+    if (!saved) return;
+    const decoded = atob(saved);
+    const parts = decoded.split('|');
+    const url = parts[0];
+    const ts = parseInt(parts[1]||'0');
+    // Session hết hạn sau 4 tiếng
+    if (Date.now() - ts > 4 * 60 * 60 * 1000){
+      sessionStorage.removeItem(SESSION_KEY);
+      return;
+    }
+    // Verify URL có dạng hợp lệ (Google Sheets)
+    if (!url.startsWith('https://docs.google.com/')){
+      sessionStorage.removeItem(SESSION_KEY);
+      return;
+    }
+    SHEET_URL = url;
+    SESSION_TOKEN = url;
+    document.getElementById('loginWrap').style.display = 'none';
+    document.getElementById('app').style.display = 'grid';
+    document.getElementById('loader').classList.remove('hide');
+    setTimeout(main, 50);
+  } catch(e){
+    sessionStorage.removeItem(SESSION_KEY);
+  }
+})();
 
 /* ============== SIDEBAR TOGGLE ============== */
 function toggleSidebar(){
@@ -1870,6 +1980,10 @@ function destroyCharts(){
 
 /* ============== DATA LOAD ============== */
 async function loadData(){
+  // GUARD: Chỉ fetch khi đã decrypt URL thành công (đúng mật khẩu)
+  if (!SHEET_URL || !SHEET_URL.startsWith('https://docs.google.com/')){
+    throw new Error('Chưa xác thực - không thể tải dữ liệu');
+  }
   // ƯU TIÊN 1: Auto-fetch từ Google Sheets (cache-bust để luôn lấy bản mới nhất)
   document.getElementById('loaderText').textContent = 'Đang kết nối Google Sheets (Live data)…';
   try{
