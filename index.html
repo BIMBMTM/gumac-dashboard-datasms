@@ -558,7 +558,23 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
   letter-spacing: 0.1em; border-radius: 6px; margin-bottom: 10px;
 }
 
-/* Strategic items (Mục 6) */
+/* Metric chips */
+.metric-chip{
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all .2s ease;
+  background: var(--bg-2); color: var(--muted);
+  border: 1px solid var(--line);
+  user-select: none;
+}
+.metric-chip:hover{ background: var(--surface-2);}
+.metric-chip.active{ color: var(--ink);}
+.metric-chip .chip-dot{
+  width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor; opacity: 0.4;
+}
+.metric-chip.active .chip-dot{ opacity: 1;}
 .swot-item{
   background: var(--bg-2);
   border: 1px solid var(--line);
@@ -965,11 +981,12 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
 
       <div class="grid-66-33" style="margin-top: 14px;">
         <div class="card chart-card">
-          <div class="chart-head">
+          <div class="chart-head" style="flex-wrap: wrap; gap: 10px;">
             <div>
-              <p class="chart-title">Doanh thu toàn hệ thống theo ngày</p>
-              <p class="chart-sub">Real-time revenue telemetry</p>
+              <p class="chart-title">Telemetry đa chỉ số theo ngày</p>
+              <p class="chart-sub">Chọn các chỉ số muốn xem · Real-time daily telemetry</p>
             </div>
+            <div id="ovMetricChips" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
           </div>
           <div class="chart-wrap"><canvas id="ovDay"></canvas></div>
         </div>
@@ -1062,6 +1079,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
               <tr>
                 <th>Chiến dịch</th>
                 <th>Tháng</th>
+                <th>Nguồn match</th>
                 <th class="num">SMS gửi</th>
                 <th class="num">KH unique</th>
                 <th class="num">CR</th>
@@ -1151,9 +1169,10 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
             <thead>
               <tr>
                 <th>Chiến dịch</th>
+                <th>Nguồn match</th>
                 <th class="num">SMS gửi</th>
                 <th class="num">KH unique</th>
-                <th class="num">KH ra CH</th>
+                <th class="num">KH mua</th>
                 <th class="num">CR</th>
                 <th class="num">Đơn</th>
                 <th class="num">ATV</th>
@@ -1258,7 +1277,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
       <div class="card table-card" style="margin-top: 14px;">
         <div class="table-head">
           <p class="chart-title">Bảng đối chiếu chi tiết theo chi nhánh</p>
-          <p class="chart-sub">CR · ATV · AOV · RPM · % SMS/DT chi nhánh · Top 20</p>
+          <p class="chart-sub">CR · ATV · AOV · RPM · % SMS/DT chi nhánh · Toàn bộ chi nhánh</p>
         </div>
         <div class="table-scroll">
           <table id="branchTable">
@@ -1274,7 +1293,6 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
                 <th class="num">DT từ SMS</th>
                 <th class="num">Tổng đơn CH</th>
                 <th class="num">AOV (Tổng)</th>
-                <th class="num">Tổng DT CH</th>
                 <th class="num">% SMS/DT CH</th>
                 <th class="num">RPM</th>
               </tr>
@@ -1491,7 +1509,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
           <div class="card-sub" id="vcsnOnlySub">— /KH nhận áo</div>
         </div>
         <div class="card">
-          <p class="card-title">Dùng cả 2 voucher</p>
+          <p class="card-title">Dùng áo thun+voucher</p>
           <div class="card-value amber" id="vcsnBoth">—</div>
           <div class="card-sub" id="vcsnBothSub">— /KH nhận áo</div>
         </div>
@@ -1501,7 +1519,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
         <div class="chart-head">
           <div>
             <p class="chart-title">Funnel chiến dịch sinh nhật</p>
-            <p class="chart-sub">Gửi SMS → Ra cửa hàng (nhận áo) → Dùng cả 2 voucher · Tổng áo = Chỉ áo + Cả 2</p>
+            <p class="chart-sub">Gửi SMS → Ra cửa hàng (nhận áo) → Dùng áo thun+voucher · Tổng áo = Chỉ áo + (Áo thun+voucher)</p>
           </div>
         </div>
         <div class="funnel" id="vcsnFunnel"></div>
@@ -1888,6 +1906,10 @@ function updateChartDefaults(){
 
 /* ============== HELPERS ============== */
 const fmtN = n => new Intl.NumberFormat('vi-VN').format(Math.round(n||0));
+const fmtFull = n => {
+  // Giá trị tuyệt đối với hậu tố "đ" (VND đầy đủ): 1,500,000 đ
+  return new Intl.NumberFormat('vi-VN').format(Math.round(n||0)) + ' đ';
+};
 const fmtVN = n => {
   n = +n || 0;
   if (n >= 1e9) return (n/1e9).toFixed(2) + ' tỷ';
@@ -2034,8 +2056,26 @@ function loadDataFromUpload(errMsg){
   });
 }
 
+function detectDateFormat(rows, colIdx){
+  // Auto-detect d/m/y vs m/d/y bằng cách quét cột đầu/thứ 2
+  // Nếu first part > 12 → chắc chắn d/m/y
+  // Nếu second part > 12 → chắc chắn m/d/y
+  // Nếu cả 2 không có giá trị > 12 → mặc định d/m/y (VN)
+  let firstMax = 0, secondMax = 0;
+  for (let i = 0; i < Math.min(rows.length, 500); i++){
+    const s = String(rows[i][colIdx]||'').trim();
+    const m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (m){
+      firstMax = Math.max(firstMax, parseInt(m[1]));
+      secondMax = Math.max(secondMax, parseInt(m[2]));
+    }
+  }
+  if (firstMax > 12) return 'dmy';
+  if (secondMax > 12) return 'mdy';
+  return 'dmy'; // default VN
+}
+
 function parseDate(s, fmt){
-  // fmt: 'dmy' (Bảng 1, 2 - d/m/y kiểu VN) hoặc 'mdy' (Bảng 3 - m/d/y kiểu Mỹ)
   if (!s) return null;
   s = String(s).trim();
   let m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
@@ -2044,12 +2084,9 @@ function parseDate(s, fmt){
   if (yr < 100) yr += 2000;
   let mo, da;
   if (fmt === 'mdy'){
-    // Bảng 3: tháng/ngày/năm (5/7/2026 = tháng 5 ngày 7)
     mo = p1; da = p2;
-    // Nếu mo>12 thì có lẽ vẫn là d/m/y → swap
     if (mo > 12 && da <= 12){ [mo, da] = [da, mo]; }
   } else {
-    // Bảng 1, 2: ngày/tháng/năm (1/5/2026 = ngày 1 tháng 5)
     da = p1; mo = p2;
     if (mo > 12 && da <= 12){ [mo, da] = [da, mo]; }
   }
@@ -2061,11 +2098,17 @@ function parseDate(s, fmt){
 /* ============== PARSE WITH NEW STRUCTURE ============== */
 function splitTables(rows){
   const data = rows.slice(2).filter(r => r && r.length > 5);
+  // Auto-detect format ngày cho từng cột
+  const fmt1 = detectDateFormat(data, 0);
+  const fmt2 = detectDateFormat(data, 23);
+  const fmt3 = detectDateFormat(data, 30);
+  console.log('Date formats detected:', { b1: fmt1, b2: fmt2, b3: fmt3 });
+
   const b1 = [], b2 = [], b3 = [];
   data.forEach(r => {
-    // BẢNG 1: cột A-J (0..9) - giữ nguyên cấu trúc cũ
+    // BẢNG 1: cột A-J (0..9)
     if (r[2] && String(r[2]).trim()){
-      const d = parseDate(r[0], 'dmy');
+      const d = parseDate(r[0], fmt1);
       b1.push({
         date: d, month: d?d.getMonth()+1:null, year: d?d.getFullYear():null,
         camp: (r[1]||'').trim(), maKH: String(r[2]).trim(),
@@ -2073,30 +2116,26 @@ function splitTables(rows){
         sdt: r[7], chiPhi: toNum(r[8]), branch: (r[9]||'').trim()
       });
     }
-    // BẢNG 2 MỚI: cột M-Y (12..24)
-    // M=Mã chương trình, N=Mã voucher, O=Tổng tiền hàng, P=Chi nhánh,
-    // Q=Mã đơn hàng, R=Mã khách hàng, S=Giá trị voucher, T=Loại voucher,
-    // U=Kênh bán hàng, V=Nguồn đơn hàng, W=Tổng tiền thanh toán, X=Ngày áp dụng, Y=Mô tả
-    if (r[17] && String(r[17]).trim()){  // Mã KH ở cột R (index 17)
-      const d = parseDate(r[23], 'dmy');  // Ngày áp dụng ở X (23) - định dạng VN d/m/y
+    // BẢNG 2: cột M-Y (12..24)
+    if (r[17] && String(r[17]).trim()){
+      const d = parseDate(r[23], fmt2);
       b2.push({
         camp: (r[12]||'').trim(), voucher: r[13],
-        tongTienHang: toNum(r[14]),  // Tổng tiền hàng (giá trị đơn trước giảm)
-        branch: (r[15]||'').trim(),  // Chi nhánh
+        tongTienHang: toNum(r[14]),
+        branch: (r[15]||'').trim(),
         maDH: r[16], maKH: String(r[17]).trim(),
         giaTriVoucher: toNum(r[18]),
         loaiVoucher: r[19], kenhBan: r[20], nguonDH: r[21],
-        tongThanhToan: toNum(r[22]),  // Doanh thu thực tế
+        tongThanhToan: toNum(r[22]),
         date: d, month: d?d.getMonth()+1:null, year: d?d.getFullYear():null,
         moTa: r[24],
-        // alias để code cũ chạy
-        giaTriDH: toNum(r[14]),  // hoặc r[22] tùy logic
+        giaTriDH: toNum(r[14]),
         doanhThu: toNum(r[22])
       });
     }
     // BẢNG 3: AA-AH (26..33)
     if (r[27] && String(r[27]).trim()){
-      const d = parseDate(r[30], 'mdy');  // Ngày mua hàng - định dạng Mỹ m/d/y
+      const d = parseDate(r[30], fmt3);
       b3.push({
         kenh: r[26], maKH: String(r[27]).trim(), sdt: r[28],
         maDH: r[29],
@@ -2107,6 +2146,50 @@ function splitTables(rows){
     }
   });
   return { b1, b2, b3 };
+}
+
+/* ============== CAMPAIGN MATCH MODE ============== */
+// LOGIC MỚI (yêu cầu #1):
+// - LOYALTY và VCSN (sinh nhật) → có mã voucher nên match qua Bảng 2 (B2)
+// - Các camp khác (vd "QUẢNG CÁO CTKM OFFLINE") → không có voucher track được
+//   nên match qua Bảng 3 (B3) bằng Mã KH: KH nhận SMS ∩ KH có đơn trong tháng
+function isVoucherCamp(campName){
+  const c = (campName||'').toUpperCase();
+  return c.includes('LOYALTY') || c.includes('VCSN');
+}
+
+// Tính metrics chuẩn cho 1 chiến dịch (dùng chung khắp dashboard)
+// b1Camp: rows của camp này trong B1, b2All: Bảng 2, b3All: Bảng 3
+function getCampMetrics(camp, b1All, b2All, b3All){
+  const sent = b1All.filter(x => x.camp === camp);
+  const sentKH = new Set(sent.map(x => x.maKH));
+  const cost = sent.reduce((s,x) => s + x.chiPhi, 0);
+
+  let buyers, orders, rev, atv, source;
+  if (isVoucherCamp(camp)){
+    // Match B2 bằng campaign code
+    const matched = b2All.filter(x => x.camp === camp);
+    buyers = new Set(matched.map(x => x.maKH));
+    orders = matched.length;
+    rev = matched.reduce((s,x) => s + x.tongThanhToan, 0);
+    source = 'voucher_b2';
+  } else {
+    // Match B3 bằng Mã KH (KH nhận SMS có đơn trong B3)
+    const matched = b3All.filter(x => sentKH.has(x.maKH));
+    buyers = new Set(matched.map(x => x.maKH));
+    orders = new Set(matched.map(x => x.maDH).filter(Boolean)).size;
+    rev = matched.reduce((s,x) => s + x.doanhThu, 0);
+    source = 'kh_match_b3';
+  }
+  atv = orders ? rev/orders : 0;
+  return {
+    camp, sent, sentTotal: sent.length, sentKH, uniqueSent: sentKH.size,
+    cost, buyers, uniqueBuy: buyers.size, orders, rev, atv,
+    cr: sentKH.size ? buyers.size/sentKH.size*100 : 0,
+    roi: cost ? rev/cost : 0,
+    costRatio: rev ? cost/rev*100 : 0,
+    source
+  };
 }
 
 /* ============== MULTI-SELECT DROPDOWN ============== */
@@ -2440,10 +2523,8 @@ function renderAll(){
 }
 
 function shortCamp(c){
-  if (!c) return '';
-  if (c.includes('VCSN')) return 'VCSN (Sinh nhật)';
-  if (c.includes('LOYALTY')) return 'LOYALTY';
-  return c.length > 22 ? c.substring(0,20) + '…' : c;
+  // Yêu cầu user: KHÔNG rút gọn tên chiến dịch, giữ nguyên
+  return c || '';
 }
 function trimBranch(n){
   if (!n) return '';
@@ -2469,21 +2550,27 @@ function renderOverview(){
   const { b1, b2, b3 } = STATE.filtered;
   const totalSent = b1.length;
   const totalCost = b1.reduce((s,x)=>s+x.chiPhi, 0);
-  const campOrders = b2.length;
-  const campRev = b2.reduce((s,x)=>s+x.tongThanhToan, 0);
-  const uniqueSent = new Set(b1.map(x=>x.maKH)).size;
-  const uniqueBuy = new Set(b2.map(x=>x.maKH)).size;
-  const cr = uniqueSent ? uniqueBuy/uniqueSent*100 : 0;
   const totalRev = b3.reduce((s,x)=>s+x.doanhThu, 0);
+
+  // ===== LOGIC MỚI: Tính tổng metrics qua per-campaign match =====
+  const camps = [...new Set(b1.map(x => x.camp))];
+  const allMetrics = camps.map(c => getCampMetrics(c, b1, b2, b3));
+  const campRev = allMetrics.reduce((s,m) => s + m.rev, 0);
+  const campOrders = allMetrics.reduce((s,m) => s + m.orders, 0);
+  const uniqueSent = new Set(b1.map(x=>x.maKH)).size;
+  // Union buyers across all camps
+  const allBuyers = new Set();
+  allMetrics.forEach(m => m.buyers.forEach(k => allBuyers.add(k)));
+  const uniqueBuy = allBuyers.size;
+  const cr = uniqueSent ? uniqueBuy/uniqueSent*100 : 0;
   const pctRev = totalRev ? campRev/totalRev*100 : 0;
   const costRatio = campRev ? totalCost/campRev*100 : 0;
   const roi = totalCost ? campRev/totalCost : 0;
   const voucherUsed = new Set(b2.map(x=>x.maDH).filter(Boolean)).size;
   const voucherRate = totalSent ? voucherUsed/totalSent*100 : 0;
-  const camps = new Set(b1.map(x=>x.camp)).size;
 
   document.getElementById('kpiSent').textContent = fmtN(totalSent);
-  document.getElementById('kpiSentSub').textContent = camps + ' chiến dịch · ' + fmtVN(totalCost);
+  document.getElementById('kpiSentSub').textContent = camps.length + ' chiến dịch · ' + fmtVN(totalCost);
   document.getElementById('kpiOrders').textContent = fmtN(uniqueBuy);
   document.getElementById('kpiOrdersSub').textContent = 'CR: ' + fmtPct(cr) + ' · ' + fmtN(campOrders) + ' đơn';
   document.getElementById('kpiRevenue').textContent = fmtVN(campRev);
@@ -2508,34 +2595,144 @@ function renderOverview(){
 
   drawGauge('gaugeHealth', healthScore);
 
-  // Day chart
-  const dayMap = {};
-  b3.forEach(x => {
-    if (!x.date) return;
-    const key = x.date.toISOString().slice(0,10);
-    dayMap[key] = (dayMap[key]||0) + x.doanhThu;
-  });
-  const days = Object.keys(dayMap).sort();
-  STATE.charts.ovDay = new Chart(document.getElementById('ovDay'), {
-    type: 'line',
-    data: {
-      labels: days.map(d => d.slice(8,10)+'/'+d.slice(5,7)),
-      datasets: [{
-        data: days.map(d => dayMap[d]),
-        borderColor: COLORS.amber, backgroundColor: 'rgba(245, 181, 68, 0.12)',
-        fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 5, borderWidth: 2.5
-      }]
-    },
-    options: {
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false }, datalabels: { display: false },
-        tooltip: { callbacks: { label: ctx => fmtVN(ctx.parsed.y) }}},
-      scales: { x: xAxisNice, y: { ...yAxisNice, ticks: { ...yAxisNice.ticks, callback: v => fmtVN(v) }}}
-    }
-  });
+  // Multi-metric daily telemetry chart
+  renderMultiMetricChart(b1, b2, b3);
 
   // Alerts
   renderAlerts(b1, b2, b3);
+}
+
+/* ============== MULTI-METRIC OVERVIEW CHART ============== */
+const OV_METRICS = [
+  { key: 'totalRev', label: 'Doanh thu toàn HT', color: '#f5b544', axis: 'y', unit: 'vnd' },
+  { key: 'smsRev', label: 'Doanh thu từ SMS', color: '#b89aff', axis: 'y', unit: 'vnd' },
+  { key: 'orders', label: 'Tổng số đơn', color: '#6ba3ff', axis: 'y1', unit: 'num' },
+  { key: 'customers', label: 'Số KH unique', color: '#5fd49a', axis: 'y1', unit: 'num' },
+  { key: 'smsOrders', label: 'Đơn từ SMS', color: '#ffc560', axis: 'y1', unit: 'num' },
+  { key: 'voucherUsed', label: 'Voucher dùng', color: '#ff9aa1', axis: 'y1', unit: 'num' }
+];
+// Mặc định bật 2 chỉ số chính
+let OV_ACTIVE = ['totalRev', 'smsRev'];
+
+function renderMultiMetricChart(b1, b2, b3){
+  // Render chips
+  const chipBox = document.getElementById('ovMetricChips');
+  if (chipBox && !chipBox.dataset.ready){
+    chipBox.innerHTML = OV_METRICS.map(m => `
+      <span class="metric-chip ${OV_ACTIVE.includes(m.key)?'active':''}" 
+            data-key="${m.key}" 
+            style="color: ${OV_ACTIVE.includes(m.key)?m.color:'var(--muted)'};">
+        <span class="chip-dot" style="background: ${m.color};"></span>
+        ${m.label}
+      </span>
+    `).join('');
+    chipBox.dataset.ready = '1';
+    chipBox.querySelectorAll('.metric-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const k = chip.dataset.key;
+        const idx = OV_ACTIVE.indexOf(k);
+        if (idx >= 0){
+          if (OV_ACTIVE.length === 1) return; // Phải có ít nhất 1
+          OV_ACTIVE.splice(idx, 1);
+        } else {
+          OV_ACTIVE.push(k);
+        }
+        // Re-render chip màu + chart
+        chipBox.querySelectorAll('.metric-chip').forEach(c => {
+          const m = OV_METRICS.find(x => x.key === c.dataset.key);
+          const active = OV_ACTIVE.includes(c.dataset.key);
+          c.classList.toggle('active', active);
+          c.style.color = active ? m.color : 'var(--muted)';
+        });
+        renderMultiMetricChart(STATE.filtered.b1, STATE.filtered.b2, STATE.filtered.b3);
+      });
+    });
+  }
+
+  // Aggregate daily metrics
+  const daily = {};
+  const ensure = (d) => {
+    if (!daily[d]) daily[d] = { totalRev: 0, smsRev: 0, orders: new Set(), customers: new Set(), smsOrders: 0, voucherUsed: new Set() };
+    return daily[d];
+  };
+
+  b3.forEach(x => {
+    if (!x.date) return;
+    const key = x.date.toISOString().slice(0,10);
+    const day = ensure(key);
+    day.totalRev += x.doanhThu;
+    if (x.maDH) day.orders.add(x.maDH);
+    if (x.maKH) day.customers.add(x.maKH);
+  });
+  b2.forEach(x => {
+    if (!x.date) return;
+    const key = x.date.toISOString().slice(0,10);
+    const day = ensure(key);
+    day.smsRev += x.tongThanhToan;
+    day.smsOrders += 1;
+    if (x.maDH) day.voucherUsed.add(x.maDH);
+  });
+
+  const days = Object.keys(daily).sort();
+  const getVal = (key, dayObj) => {
+    const v = dayObj[key];
+    if (v instanceof Set) return v.size;
+    return v || 0;
+  };
+
+  const datasets = OV_ACTIVE.map(key => {
+    const m = OV_METRICS.find(x => x.key === key);
+    return {
+      label: m.label,
+      data: days.map(d => getVal(key, daily[d])),
+      borderColor: m.color,
+      backgroundColor: m.color + '22',
+      yAxisID: m.axis,
+      _unit: m.unit,
+      fill: OV_ACTIVE.length === 1,
+      tension: 0.4, pointRadius: 2, pointHoverRadius: 5, borderWidth: 2.5,
+      pointBackgroundColor: m.color
+    };
+  });
+
+  const hasVnd = OV_ACTIVE.some(k => OV_METRICS.find(m=>m.key===k).unit === 'vnd');
+  const hasNum = OV_ACTIVE.some(k => OV_METRICS.find(m=>m.key===k).unit === 'num');
+
+  if (STATE.charts.ovDay) STATE.charts.ovDay.destroy();
+  STATE.charts.ovDay = new Chart(document.getElementById('ovDay'), {
+    type: 'line',
+    data: { labels: days.map(d => d.slice(8,10)+'/'+d.slice(5,7)), datasets },
+    options: {
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { 
+        legend: { display: true, position: 'top', labels: { color: COLORS.muted, font: { family: 'Montserrat', size: 11 }, usePointStyle: true, padding: 12 }},
+        datalabels: { display: false },
+        tooltip: { 
+          callbacks: { 
+            label: ctx => {
+              const unit = ctx.dataset._unit;
+              return ctx.dataset.label + ': ' + (unit === 'vnd' ? fmtVN(ctx.parsed.y) : fmtN(ctx.parsed.y));
+            }
+          }
+        }
+      },
+      scales: { 
+        x: xAxisNice, 
+        y: { 
+          ...yAxisNice, position: 'left', display: hasVnd,
+          ticks: { ...yAxisNice.ticks, callback: v => fmtVN(v) },
+          title: { display: hasVnd, text: 'VND', color: COLORS.muted, font: { family: 'Montserrat', size: 10 }}
+        },
+        y1: {
+          position: 'right', display: hasNum,
+          grid: { display: false }, border: { display: false },
+          ticks: { callback: v => fmtN(v), padding: 8, color: COLORS.muted, font: { family: 'Montserrat', size: 10.5 }},
+          title: { display: hasNum, text: 'Số lượng', color: COLORS.muted, font: { family: 'Montserrat', size: 10 }}
+        }
+      }
+    }
+  });
 }
 
 function setProgress(textId, barId, val, width, unit, d=2){
@@ -2700,22 +2897,20 @@ function renderCampaignsTab(){
   const camps = [...new Set(b1.map(x => x.camp))];
 
   const rows = camps.map(c => {
-    const sent = b1.filter(x => x.camp === c);
-    const sentTotal = sent.length;
-    const uniqueSent = new Set(sent.map(x=>x.maKH)).size;
-    const cost = sent.reduce((s,x)=>s+x.chiPhi, 0);
-    const buy = b2.filter(x => x.camp === c);
-    const uniqueBuy = new Set(buy.map(x=>x.maKH)).size;
-    const orders = buy.length;
-    const rev = buy.reduce((s,x)=>s+x.tongThanhToan, 0);
-    const cr = uniqueSent ? uniqueBuy/uniqueSent*100 : 0;
-    const atv = orders ? rev/orders : 0;
-    const roi = cost ? rev/cost : 0;
-    // Lấy tháng phổ biến nhất từ ngày áp dụng voucher (Bảng 2), fallback Bảng 1
+    const m = getCampMetrics(c, b1, b2, b3);
+    // Lấy tháng: với voucher camp lấy từ B2, với match-KH camp lấy từ B3 (ngày KH mua)
     let monthLabel = '—';
-    if (buy.length > 0){
+    let dateSource = null;
+    if (m.source === 'voucher_b2'){
+      const buy = b2.filter(x => x.camp === c);
+      dateSource = buy;
+    } else {
+      const sentKH = m.sentKH;
+      dateSource = b3.filter(x => sentKH.has(x.maKH));
+    }
+    if (dateSource && dateSource.length > 0){
       const monthCounts = {};
-      buy.forEach(x => {
+      dateSource.forEach(x => {
         if (x.month && x.year){
           const key = `T${x.month}/${x.year}`;
           monthCounts[key] = (monthCounts[key]||0) + 1;
@@ -2723,16 +2918,22 @@ function renderCampaignsTab(){
       });
       const topMonth = Object.entries(monthCounts).sort((a,b)=>b[1]-a[1])[0];
       if (topMonth) monthLabel = topMonth[0];
-    } else if (sent[0]?.date){
-      monthLabel = `T${sent[0].month}/${sent[0].year}`;
     }
-    return { c, month: monthLabel, sentTotal, uniqueSent, uniqueBuy, cr, orders, atv, rev, cost, roi };
+    if (monthLabel === '—' && m.sent[0]?.date){
+      monthLabel = `T${m.sent[0].month}/${m.sent[0].year}`;
+    }
+    return {
+      c, month: monthLabel, source: m.source,
+      sentTotal: m.sentTotal, uniqueSent: m.uniqueSent, uniqueBuy: m.uniqueBuy,
+      cr: m.cr, orders: m.orders, atv: m.atv, rev: m.rev, cost: m.cost, roi: m.roi
+    };
   }).sort((a,b) => b.rev - a.rev);
 
   document.querySelector('#campListTable tbody').innerHTML = rows.map(r => `
     <tr>
       <td><b>${escapeHtml(r.c)}</b></td>
       <td>${r.month}</td>
+      <td>${r.source === 'voucher_b2' ? '<span class="tag tag-green">Voucher (B2)</span>' : '<span class="tag tag-blue">Mã KH (B3)</span>'}</td>
       <td class="num">${fmtN(r.sentTotal)}</td>
       <td class="num">${fmtN(r.uniqueSent)}</td>
       <td class="num"><b style="color: ${r.cr>=4?COLORS.green:COLORS.amber}">${fmtPct(r.cr)}</b></td>
@@ -2743,7 +2944,7 @@ function renderCampaignsTab(){
       <td class="num"><b style="color: var(--green);">${r.roi.toFixed(1)}x</b></td>
       <td><span class="tag tag-green">Hoàn thành</span></td>
     </tr>
-  `).join('') || '<tr><td colspan="11" style="text-align:center; color: var(--muted);">Không có chiến dịch</td></tr>';
+  `).join('') || '<tr><td colspan="12" style="text-align:center; color: var(--muted);">Không có chiến dịch</td></tr>';
 
   // ========== CHARTS ==========
   if (rows.length === 0) return;
@@ -2757,7 +2958,7 @@ function renderCampaignsTab(){
         { label: 'SMS gửi', data: rows.map(r=>r.sentTotal), backgroundColor: 'rgba(245, 181, 68, 0.25)', borderColor: COLORS.amber, borderWidth: 1.5, borderRadius: 8, barThickness: 40, yAxisID: 'y',
           datalabels: { ...dlNum, anchor:'end', align:'end', offset:-2, color: COLORS.amber }},
         { label: 'KH chuyển đổi', data: rows.map(r=>r.uniqueBuy), backgroundColor: COLORS.amber, borderRadius: 8, barThickness: 22, yAxisID: 'y1',
-          datalabels: { ...dlNum, anchor:'end', align:'end', offset:-2, color: COLORS.bg }}
+          datalabels: { ...dlNum, anchor:'end', align:'end', offset:-2, color: COLORS.ink }}
       ]},
     options: {
       maintainAspectRatio: false,
@@ -2846,7 +3047,18 @@ function renderCampaignsTab(){
     options: {
       maintainAspectRatio: false,
       plugins:{ legend:{display:true, position:'top'},
-        datalabels: { display: false },
+        datalabels: { 
+          display: ctx => {
+            // Chỉ hiện datalabel ở giá trị peak của mỗi series
+            const data = ctx.dataset.data;
+            const v = data[ctx.dataIndex];
+            return v === Math.max(...data) && v > 0;
+          },
+          color: ctx => ctx.dataset.borderColor,
+          font: { family: 'Montserrat', size: 10, weight: 700 },
+          formatter: v => fmtN(v),
+          anchor: 'end', align: 'top', offset: 4
+        },
         tooltip:{ mode: 'index', callbacks:{ label: ctx => ctx.dataset.label + ': ' + fmtN(ctx.parsed.y) + ' đơn' }}},
       scales:{ x: xAxisNice, y: { ...yAxisNice, ticks: {...yAxisNice.ticks, callback: v => fmtN(v)}, title:{display:true, text:'Số đơn dùng voucher', color: COLORS.muted}}}
     }
@@ -2860,25 +3072,20 @@ function renderSection1(){
   const camps = [...new Set(b1.map(x => x.camp))];
 
   const rows = camps.map(c => {
-    const sent = b1.filter(x => x.camp === c);
-    const sentTotal = sent.length;
-    const uniqueSent = new Set(sent.map(x=>x.maKH)).size;
-    const cost = sent.reduce((s,x)=>s+x.chiPhi, 0);
-    const buy = b2.filter(x => x.camp === c);
-    const uniqueBuy = new Set(buy.map(x=>x.maKH)).size;
-    const orders = buy.length;
-    const rev = buy.reduce((s,x)=>s+x.tongThanhToan, 0);
-    const cr = uniqueSent ? uniqueBuy/uniqueSent*100 : 0;
-    const atv = orders ? rev/orders : 0;
-    const pctRev = totalRev ? rev/totalRev*100 : 0;
-    const costRatio = rev ? cost/rev*100 : 0;
-    const roi = cost ? rev/cost : 0;
-    return { c, sentTotal, uniqueSent, uniqueBuy, cr, orders, atv, rev, pctRev, cost, costRatio, roi };
+    const m = getCampMetrics(c, b1, b2, b3);
+    const pctRev = totalRev ? m.rev/totalRev*100 : 0;
+    return {
+      c, source: m.source,
+      sentTotal: m.sentTotal, uniqueSent: m.uniqueSent, uniqueBuy: m.uniqueBuy,
+      cr: m.cr, orders: m.orders, atv: m.atv, rev: m.rev,
+      pctRev, cost: m.cost, costRatio: m.costRatio, roi: m.roi
+    };
   }).sort((a,b)=>b.rev-a.rev);
 
   document.querySelector('#campTable tbody').innerHTML = rows.map(r => `
     <tr>
       <td><span class="tag ${r.c.includes('VCSN')?'tag-amber':'tag-violet'}">${escapeHtml(r.c)}</span></td>
+      <td>${r.source === 'voucher_b2' ? '<span class="tag tag-green">Voucher (B2)</span>' : '<span class="tag tag-blue">Mã KH (B3)</span>'}</td>
       <td class="num">${fmtN(r.sentTotal)}</td>
       <td class="num">${fmtN(r.uniqueSent)}</td>
       <td class="num">${fmtN(r.uniqueBuy)}</td>
@@ -2891,7 +3098,7 @@ function renderSection1(){
       <td class="num">${fmtPct(r.costRatio,3)}</td>
       <td class="num"><b style="color: var(--green);">${r.roi.toFixed(1)}x</b></td>
     </tr>
-  `).join('') || '<tr><td colspan="12" style="text-align:center; color: var(--muted);">Không có chiến dịch</td></tr>';
+  `).join('') || '<tr><td colspan="13" style="text-align:center; color: var(--muted);">Không có chiến dịch</td></tr>';
 
   const labels = rows.map(r => shortCamp(r.c));
 
@@ -2944,7 +3151,7 @@ function renderSection1(){
     options: {
       maintainAspectRatio: false,
       plugins:{ legend:{display:true, position:'top'},
-        datalabels: { ...dlNum, anchor:'end', align:'end', offset:-4, color: COLORS.bg },
+        datalabels: { ...dlNum, anchor:'end', align:'end', offset:-4, color: COLORS.ink },
         tooltip:{ callbacks:{ label: ctx => ctx.dataset.label + ': ' + fmtN(ctx.parsed.y) }}},
       scales: { x: xAxisNice, y: { ...yAxisNice, ticks: {...yAxisNice.ticks, callback: v => fmtN(v)}}}
     }
@@ -2962,7 +3169,7 @@ function renderSection1(){
     options: {
       maintainAspectRatio:false, cutout:'66%',
       plugins:{ legend:{position:'bottom', labels: { color: COLORS.muted }},
-        datalabels: { color: COLORS.bg, font: { family: 'Montserrat', size: 11, weight: 700 },
+        datalabels: { color: COLORS.ink, font: { family: 'Montserrat', size: 11, weight: 700 },
           formatter: (v, ctx) => {
             const total = ctx.dataset.data.reduce((s,x)=>s+x,0);
             const p = total ? v/total*100 : 0;
@@ -3060,8 +3267,10 @@ function renderSection2(){
     options: {
       indexAxis:'y', maintainAspectRatio: false,
       plugins:{ legend:{display:false},
-        datalabels: { ...dlVN, anchor:'end', align:'end', offset: 4, color: COLORS.ink },
-        tooltip:{ callbacks:{ label: ctx => fmtVN(ctx.parsed.x) }}},
+        datalabels: { anchor:'end', align:'end', offset: 4, color: COLORS.ink,
+          font: { family: 'Montserrat', size: 10, weight: 700 },
+          formatter: v => fmtFull(v) },
+        tooltip:{ callbacks:{ label: ctx => fmtFull(ctx.parsed.x) }}},
       scales:{ x:{...yAxisNice, ticks:{...yAxisNice.ticks, callback: v => fmtVN(v)}}, y:{...xAxisNice, ticks:{font:{family:'Montserrat',size:10}, color: COLORS.muted}}}
     }
   });
@@ -3102,7 +3311,7 @@ function renderSection2(){
     const pct = x.totalRev ? x.rev/x.totalRev*100 : 0;
     const rpm = uniqueSent ? x.rev/uniqueSent : 0;
     return { name: x.name, sent, uniqueSent, uniqueBuy, cr, orders, atvSMS, rev: x.rev, totalOrders, aov, totalRev: x.totalRev, pct, rpm };
-  }).filter(r => r.sent > 0 || r.rev > 0).sort((a,b)=>b.rev-a.rev).slice(0,20);
+  }).filter(r => r.sent > 0 || r.rev > 0).sort((a,b)=>b.rev-a.rev);
 
   document.querySelector('#branchTable tbody').innerHTML = branchRows.map(r => `
     <tr>
@@ -3116,11 +3325,10 @@ function renderSection2(){
       <td class="num"><b style="color: var(--amber);">${fmtVN(r.rev)}</b></td>
       <td class="num">${fmtN(r.totalOrders)}</td>
       <td class="num">${fmtVN(r.aov)}</td>
-      <td class="num">${fmtVN(r.totalRev)}</td>
       <td class="num">${fmtPct(r.pct)}</td>
       <td class="num">${fmtVN(r.rpm)}</td>
     </tr>
-  `).join('') || '<tr><td colspan="13" style="text-align:center; color: var(--muted);">Không có chi nhánh</td></tr>';
+  `).join('') || '<tr><td colspan="12" style="text-align:center; color: var(--muted);">Không có chi nhánh</td></tr>';
 
   const topB = branchRows[0];
   const items = [];
@@ -3275,7 +3483,7 @@ function renderSection3(){
     options: {
       maintainAspectRatio: false, cutout: '64%',
       plugins:{ legend:{position:'right', labels: { color: COLORS.muted }},
-        datalabels: { color: COLORS.bg, font: { family:'Montserrat', size: 12, weight: 700 },
+        datalabels: { color: COLORS.ink, font: { family:'Montserrat', size: 12, weight: 700 },
           formatter: (v, ctx) => {
             const total = ctx.dataset.data.reduce((s,x)=>s+x,0);
             return total ? (v/total*100).toFixed(1)+'%' : '';
@@ -3415,7 +3623,7 @@ function renderSection4(){
     options: {
       maintainAspectRatio: false, cutout: '58%',
       plugins:{ legend:{position:'bottom', labels:{color: COLORS.muted}},
-        datalabels: { color: COLORS.bg, font: { family:'Montserrat', size: 11, weight: 700 },
+        datalabels: { color: COLORS.ink, font: { family:'Montserrat', size: 11, weight: 700 },
           formatter: (v, ctx) => {
             const total = ctx.dataset.data.reduce((s,x)=>s+x,0);
             const p = total ? v/total*100 : 0;
@@ -3441,7 +3649,7 @@ function renderSection4(){
     options: {
       maintainAspectRatio: false,
       plugins:{ legend:{display:false},
-        datalabels: { ...dlVN, anchor:'end', align:'end', offset: -2, color: COLORS.bg },
+        datalabels: { ...dlVN, anchor:'end', align:'end', offset: -2, color: COLORS.ink },
         tooltip:{ callbacks:{ label: ctx => fmtVN(ctx.parsed.y) }}},
       scales:{ x: xAxisNice, y: { ...yAxisNice, ticks: {...yAxisNice.ticks, callback: v => fmtVN(v)}}}
     }
@@ -3543,7 +3751,7 @@ function renderSection5(){
   const gotShirt = new Set([...sentKH].filter(k => b3KH.has(k)));
   const totalShirt = gotShirt.size;
 
-  // Bước 2: Trong nhóm "nhận áo", ai có trong Bảng 2 (VCSN OFFLINE) = DÙNG CẢ 2
+  // Bước 2: Trong nhóm "nhận áo", ai có trong Bảng 2 (VCSN OFFLINE) = Dùng áo thun+voucher
   const vcsnRedeem = b2.filter(x => (x.camp||'').toUpperCase().includes('OFFLINE_BD'));
   const voucherKH = new Set(vcsnRedeem.map(x => x.maKH));
   const both = new Set([...gotShirt].filter(k => voucherKH.has(k)));
@@ -3569,7 +3777,7 @@ function renderSection5(){
     { label: '1. Gửi SMS sinh nhật', val: totalSent, color: COLORS.amber, pct: 100 },
     { label: '2. TỔNG nhận áo thun (B1 ∩ B3)', val: totalShirt, color: COLORS.amberBright, pct: totalShirt/totalSent*100 },
     { label: '3. Trong đó: Chỉ áo thun', val: onlyShirt.size, color: COLORS.violet, pct: onlyShirt.size/totalSent*100 },
-    { label: '4. Trong đó: Dùng CẢ 2 voucher', val: both.size, color: COLORS.green, pct: both.size/totalSent*100 }
+    { label: '4. Trong đó: Dùng áo thun+voucher', val: both.size, color: COLORS.green, pct: both.size/totalSent*100 }
   ];
   document.getElementById('vcsnFunnel').innerHTML = funnelData.map(f => `
     <div class="funnel-step">
@@ -3585,13 +3793,13 @@ function renderSection5(){
 
   STATE.charts.c5_split = new Chart(document.getElementById('c5_split'), {
     type: 'doughnut',
-    data: { labels: ['Dùng cả 2 voucher', 'Chỉ áo thun', 'Không phản hồi'],
+    data: { labels: ['Dùng áo thun+voucher', 'Chỉ áo thun', 'Không phản hồi'],
       datasets: [{ data: [both.size, onlyShirt.size, noResponse.size],
         backgroundColor: [COLORS.green, COLORS.amber, 'rgba(255,255,255,0.08)'], borderWidth: 0 }]},
     options: {
       maintainAspectRatio: false, cutout: '62%',
       plugins:{ legend:{position:'bottom', labels:{color: COLORS.muted}},
-        datalabels: { color: COLORS.bg, font: { family:'Montserrat', size: 12, weight: 700 },
+        datalabels: { color: COLORS.ink, font: { family:'Montserrat', size: 12, weight: 700 },
           formatter: (v, ctx) => {
             const total = ctx.dataset.data.reduce((s,x)=>s+x,0);
             const p = total ? v/total*100 : 0;
@@ -3605,12 +3813,12 @@ function renderSection5(){
   const atvOnly = onlyShirt.size ? revOnly/onlyShirt.size : 0;
   STATE.charts.c5_rev = new Chart(document.getElementById('c5_rev'), {
     type: 'bar',
-    data: { labels: ['Dùng cả 2 voucher', 'Chỉ áo thun'],
+    data: { labels: ['Dùng áo thun+voucher', 'Chỉ áo thun'],
       datasets: [
         { label: 'Tổng doanh thu', data: [revBoth, revOnly], backgroundColor: COLORS.amber, borderRadius: 8, barThickness: 50, yAxisID: 'y',
-          datalabels: { ...dlVN, anchor:'end', align:'end', offset:-2, color: COLORS.bg }},
+          datalabels: { ...dlVN, anchor:'end', align:'end', offset:-2, color: COLORS.ink }},
         { label: 'Chi tiêu TB / KH', data: [atvBoth, atvOnly], backgroundColor: COLORS.violet, borderRadius: 8, barThickness: 22, yAxisID: 'y1',
-          datalabels: { ...dlVN, anchor:'end', align:'end', offset:-2, color: COLORS.bg }}
+          datalabels: { ...dlVN, anchor:'end', align:'end', offset:-2, color: COLORS.ink }}
       ]},
     options: {
       maintainAspectRatio: false,
@@ -3656,7 +3864,7 @@ function renderSection5(){
     desc: `<b>${fmtN(totalShirt)}</b>/${fmtN(totalSent)} KH ra cửa hàng nhận áo thun · Khá tốt cho ngành thời trang offline.`
   });
   items.push({
-    type: 'positive', icon: '★', label: 'KH dùng cả 2 voucher',
+    type: 'positive', icon: '★', label: 'KH dùng áo thun+voucher',
     value: fmtN(both.size) + ' KH · ' + fmtPct(bothRate), color: 'amber',
     desc: `Chiến dịch kép hoạt động! <b>${fmtPct(bothRate)}</b> KH nhận áo cũng dùng luôn voucher giảm giá.`
   });
@@ -3665,7 +3873,7 @@ function renderSection5(){
     items.push({
       type: 'info', icon: '$', label: 'Voucher tăng AOV',
       value: '+' + upPct + '% chi tiêu', color: 'amber',
-      desc: `Nhóm dùng cả 2 voucher chi <b>${fmtVN(atvBoth)}</b>/KH vs nhóm chỉ áo <b>${fmtVN(atvOnly)}</b>/KH → Voucher giảm 10% kích đẩy AOV mạnh.`
+      desc: `Nhóm dùng áo thun+voucher chi <b>${fmtVN(atvBoth)}</b>/KH vs nhóm chỉ áo <b>${fmtVN(atvOnly)}</b>/KH → Voucher giảm 10% kích đẩy AOV mạnh.`
     });
   }
   if (onlyShirt.size > 0){
@@ -3937,13 +4145,19 @@ function renderSection6(){
     options: {
       maintainAspectRatio: false,
       plugins:{ legend:{display:true, position:'top'},
-        datalabels: { display: false },
+        datalabels: { 
+          display: true, color: ctx => ctx.dataset.borderColor,
+          font: { family: 'Montserrat', size: 10, weight: 700 },
+          formatter: v => v.toFixed(0),
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          borderRadius: 4, padding: { top: 2, bottom: 2, left: 5, right: 5 }
+        },
         tooltip:{ callbacks:{ label: ctx => ctx.dataset.label + ': ' + ctx.parsed.r.toFixed(0) + '/100' }}},
       scales:{ r: {
         beginAtZero: true, max: 100,
         ticks: { display: false, stepSize: 25 },
-        grid: { color: 'rgba(255,255,255,0.06)'},
-        angleLines: { color: 'rgba(255,255,255,0.08)'},
+        grid: { color: getGridColor() },
+        angleLines: { color: getGridColor() },
         pointLabels: { color: COLORS.muted, font: { family: 'Montserrat', size: 11, weight: 600 }}
       }}
     }
@@ -4041,7 +4255,7 @@ function renderSection6(){
     },
     {
       title: 'Mở rộng cơ chế VCSN OFFLINE sang các dịp khác',
-      desc: 'Chiến dịch sinh nhật có CR cao nhất (5.35%) và 61% KH dùng cả 2 voucher → nâng AOV 77%. Áp dụng cơ chế "quà tặng + voucher" vào các dịp lễ: 8/3, 20/10, Black Friday, Tết...',
+      desc: 'Chiến dịch sinh nhật có CR cao nhất (5.35%) và 61% KH dùng áo thun+voucher → nâng AOV 77%. Áp dụng cơ chế "quà tặng + voucher" vào các dịp lễ: 8/3, 20/10, Black Friday, Tết...',
       impact: 'high', kpi: 'CR ≥ 4% cho 4 dịp lễ', timeline: '90 ngày', cost: 'Trung bình - chi phí quà tặng'
     },
     {
