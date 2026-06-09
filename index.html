@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>GUMAC · SMS CRM v4.0</title>
+<title>GUMAC · Atelier CRM v4.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 /* ============ CORE ============ */
 :root, :root[data-theme="dark"]{
@@ -67,6 +68,8 @@
   --shadow-soft: 0 8px 24px -10px rgba(0,0,0,0.12);
 }
 *{ box-sizing: border-box; font-family: 'Montserrat', sans-serif; }
+/* Tắt mọi transition khi đang đổi theme để tránh lag (hàng trăm element transition cùng lúc) */
+html.theme-switching *{ transition: none !important; }
 html, body{ margin:0; padding:0; background: var(--bg); color: var(--ink); }
 body{
   background:
@@ -264,6 +267,9 @@ main{ padding: 24px 32px 80px 32px; max-width: 1600px; }
   color: var(--muted); font-size: 16px;
 }
 .top-actions{ margin-left: auto; display: flex; align-items: center; gap: 10px;}
+#reloadIcon{ display: inline-block; transition: transform .3s ease; }
+#reloadIcon.spinning{ animation: reloadSpin 0.8s linear infinite; }
+@keyframes reloadSpin{ from{ transform: rotate(0deg);} to{ transform: rotate(360deg);} }
 .icon-btn{
   width: 38px; height: 38px; border-radius: 10px;
   background: var(--surface); border: 1px solid var(--line);
@@ -558,6 +564,18 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
   letter-spacing: 0.1em; border-radius: 6px; margin-bottom: 10px;
 }
 
+/* Toast notification */
+.toast{
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--surface); border: 1px solid var(--line-2);
+  color: var(--ink); padding: 12px 22px; border-radius: 12px;
+  font-size: 13px; font-weight: 600;
+  box-shadow: var(--shadow-amber), var(--shadow-soft);
+  z-index: 9000; opacity: 0; transition: all .3s cubic-bezier(.2,.8,.2,1);
+  pointer-events: none; max-width: 90vw;
+}
+.toast.show{ opacity: 1; transform: translateX(-50%) translateY(0); }
+
 /* Metric chips */
 .metric-chip{
   display: inline-flex; align-items: center; gap: 6px;
@@ -820,7 +838,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
 <div class="login-wrap" id="loginWrap">
   <div class="login-card">
     <div class="login-logo">G</div>
-    <h2 class="login-title">GUMAC · SMS CRM</h2>
+    <h2 class="login-title">GUMAC · Atelier CRM</h2>
     <p class="login-sub">Master Artisan · Digital Marketing Intelligence</p>
     <input type="password" id="pwdInput" class="login-input" placeholder="Nhập mật khẩu" autocomplete="current-password" />
     <button class="login-btn" onclick="checkLogin()">Đăng nhập</button>
@@ -861,6 +879,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     <button class="nav-item active" data-section="overview"><span class="nav-icon">◈</span><span class="nav-text">Tổng quan</span></button>
     <button class="nav-item" data-section="customers"><span class="nav-icon">⊙</span><span class="nav-text">Khách hàng</span></button>
     <button class="nav-item" data-section="campaigns"><span class="nav-icon">▤</span><span class="nav-text">Chiến dịch SMS</span></button>
+    <button class="nav-item" data-section="compare"><span class="nav-icon">⇄</span><span class="nav-text">So sánh tháng</span></button>
 
     <div class="nav-label">Phân tích</div>
     <button class="nav-item" data-section="sec-1"><span class="nav-icon">①</span><span class="nav-text">Hiệu quả CD</span></button>
@@ -889,11 +908,9 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
         <input type="text" id="globalSearch" placeholder="Tìm khách hàng theo SĐT, mã, tên…" />
       </div>
       <div class="top-actions">
+        <button class="icon-btn" id="reloadBtn" onclick="reloadData()" title="Tải lại dữ liệu từ Google Sheets"><span id="reloadIcon">⟳</span></button>
+        <button class="icon-btn" id="downloadBtn" onclick="downloadXLSX()" title="Tải xuống dữ liệu (Excel)"><span>⤓</span></button>
         <button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Đổi giao diện sáng/tối"><span id="themeIcon">☀</span></button>
-        <button class="icon-btn" title="Notifications" style="position:relative">
-          <span>◷</span><span class="badge"></span>
-        </button>
-        <button class="icon-btn" title="Settings"><span>⚙</span></button>
       </div>
     </div>
 
@@ -951,9 +968,9 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
           <div class="card-sub" id="kpiATVSub">Giá trị TB mỗi đơn từ chiến dịch SMS</div>
         </div>
         <div class="card">
-          <p class="card-title">CRV · Customer Revenue Value</p>
+          <p class="card-title">CRV · Tỷ lệ chuyển đổi đơn</p>
           <div class="card-value amber" id="kpiCRV">—</div>
-          <div class="card-sub" id="kpiCRVSub">Doanh thu trung bình / 1 khách hàng chuyển đổi</div>
+          <div class="card-sub" id="kpiCRVSub">Số đơn / Số SMS đã gửi</div>
         </div>
       </div>
 
@@ -1162,10 +1179,92 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
       </div>
     </div>
 
-    <!-- ============= SECTION 1 ============= -->
-    <div class="section" id="section-sec-1">
+    <!-- ============= COMPARE - SO SÁNH THÁNG ============= -->
+    <div class="section" id="section-compare">
       <div class="page-header">
         <div>
+          <h1 class="page-title">Month-over-Month</h1>
+          <p class="page-sub">So sánh hiệu suất các chỉ số giữa 3 tháng gần nhất · Xu hướng tăng trưởng</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-amber" onclick="downloadXLSX()">⤓ Xuất Excel</button>
+        </div>
+      </div>
+
+      <div id="compareEmpty" style="display:none;">
+        <div class="card" style="text-align:center; padding: 48px 24px;">
+          <div style="font-size: 40px; margin-bottom: 16px;">📅</div>
+          <h3 style="margin: 0 0 8px 0; font-size: 18px;">Chưa đủ dữ liệu để so sánh</h3>
+          <p style="color: var(--muted); font-size: 13px; max-width: 480px; margin: 0 auto; line-height: 1.6;">
+            Dữ liệu hiện tại chỉ có <b id="compareSingleMonth" style="color: var(--amber);">1 tháng</b>.
+            Trang so sánh sẽ tự động kích hoạt khi có dữ liệu từ <b>2 tháng trở lên</b>.
+            Hãy tích lũy dữ liệu các tháng tiếp theo, hệ thống sẽ tự đối chiếu MoM.
+          </p>
+        </div>
+      </div>
+
+      <div id="compareContent" style="display:none;">
+        <!-- KPI comparison cards -->
+        <div class="kpi-grid" id="compareKpiGrid"></div>
+
+        <!-- Trend charts -->
+        <div class="grid-2" style="margin-top: 14px;">
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div>
+                <p class="chart-title">Doanh thu từ SMS qua các tháng</p>
+                <p class="chart-sub">Xu hướng doanh thu chiến dịch</p>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="cmp_revenue"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div>
+                <p class="chart-title">SMS gửi & Chuyển đổi qua các tháng</p>
+                <p class="chart-sub">Quy mô gửi tin và số KH mua</p>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="cmp_sent"></canvas></div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 14px;">
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div>
+                <p class="chart-title">CR & ROI qua các tháng</p>
+                <p class="chart-sub">Hiệu quả chuyển đổi và hoàn vốn</p>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="cmp_crroi"></canvas></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-head">
+              <div>
+                <p class="chart-title">ATV & Chi phí SMS qua các tháng</p>
+                <p class="chart-sub">Giá trị đơn TB và chi phí</p>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="cmp_atvcost"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Detailed comparison table -->
+        <div class="card table-card" style="margin-top: 14px;">
+          <div class="table-head">
+            <p class="chart-title">Bảng so sánh chi tiết các chỉ số</p>
+            <p class="chart-sub">Mũi tên thể hiện xu hướng so với tháng liền trước</p>
+          </div>
+          <div class="table-scroll">
+            <table id="compareTable">
+              <thead><tr id="compareTableHead"></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
           <div class="section-no">Mục 01 · Campaign Analytics</div>
           <h1 class="page-title">Hiệu quả từng chiến dịch SMS</h1>
           <p class="page-sub">Số lượng gửi, chuyển đổi, doanh thu, ATV, tỷ trọng và chi phí SMS/DT của từng chiến dịch.</p>
@@ -1838,7 +1937,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     </div>
 
     <div style="margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; display:flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-      <div>© GUMAC · SMS CRM v4.0 · Digital Marketing Team</div>
+      <div>© GUMAC · Atelier CRM v4.0 · Digital Marketing Team</div>
       <div>Master Artisan · Live data from Google Sheets</div>
     </div>
   </main>
@@ -2019,15 +2118,27 @@ function applyTheme(theme){
   try { localStorage.setItem('gumac_theme', theme); } catch(e){}
   const icon = document.getElementById('themeIcon');
   if (icon) icon.textContent = theme === 'dark' ? '☀' : '☾';
-  // Update Chart.js defaults
-  setTimeout(updateChartDefaults, 50);
 }
 function toggleTheme(){
   const cur = document.documentElement.getAttribute('data-theme') || 'dark';
-  applyTheme(cur === 'dark' ? 'light' : 'dark');
-  // Re-render all charts to apply new colors
-  if (STATE.raw.b1.length) {
-    setTimeout(() => { renderAll(); }, 100);
+  const next = cur === 'dark' ? 'light' : 'dark';
+
+  // Tắt transition tạm thời để đổi màu tức thì, tránh lag do hàng trăm element transition cùng lúc
+  const root = document.documentElement;
+  root.classList.add('theme-switching');
+
+  applyTheme(next);
+  updateChartDefaults();
+
+  // Chỉ re-render section đang hiển thị (nhẹ hơn nhiều so với renderAll)
+  if (STATE.raw.b1 && STATE.raw.b1.length) {
+    requestAnimationFrame(() => {
+      rerenderCurrentSection();
+      // Bật lại transition sau khi đã đổi xong
+      setTimeout(() => root.classList.remove('theme-switching'), 50);
+    });
+  } else {
+    setTimeout(() => root.classList.remove('theme-switching'), 50);
   }
 }
 function updateChartDefaults(){
@@ -2530,7 +2641,10 @@ function setupNav(){
       btn.classList.add('active');
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.getElementById('section-' + sec).classList.add('active');
+      CURRENT_SECTION = sec;
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Lazy render: chỉ render khi section này chưa được vẽ
+      renderSection(sec, false);
       // Resize charts in newly visible section
       setTimeout(() => {
         Object.values(STATE.charts).forEach(c => { try{ c.resize(); }catch(e){} });
@@ -2655,8 +2769,180 @@ async function main(){
   }
 }
 
-/* ============== RENDER ALL ============== */
+/* ============== RELOAD DATA ============== */
+async function reloadData(){
+  const icon = document.getElementById('reloadIcon');
+  if (icon) icon.classList.add('spinning');
+  try {
+    // Bust cache: thêm timestamp mới
+    const rows = await loadData();
+    const { b1, b2, b3 } = splitTables(rows);
+    STATE.raw = { b1, b2, b3 };
+    applyFilters();
+    showToast('✓ Đã tải lại dữ liệu mới nhất');
+  } catch(err){
+    console.error(err);
+    showToast('✗ Lỗi tải dữ liệu: ' + err.message, true);
+  } finally {
+    if (icon) setTimeout(() => icon.classList.remove('spinning'), 500);
+  }
+}
+
+/* ============== DOWNLOAD XLSX ============== */
+function downloadXLSX(){
+  if (!window.XLSX){ showToast('✗ Thư viện Excel chưa sẵn sàng', true); return; }
+  const { b1, b2, b3 } = STATE.filtered;
+  if (!b1.length && !b2.length && !b3.length){ showToast('Không có dữ liệu để xuất', true); return; }
+
+  showToast('Đang tạo file Excel…');
+  try {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: SMS đã gửi (Bảng 1)
+    const sheet1 = b1.map(x => ({
+      'Ngày gửi': x.date ? x.date.toLocaleDateString('vi-VN') : '',
+      'Chiến dịch': x.camp,
+      'Mã KH': x.maKH,
+      'Tên': x.ten || '',
+      'Giới tính': x.gender || '',
+      'RFM Group': x.rfmGroup || '',
+      'RFM Segment': x.rfmSeg || '',
+      'Chi phí SMS': x.chiPhi,
+      'Chi nhánh': x.branch
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet1), 'SMS đã gửi');
+
+    // Sheet 2: Đơn từ voucher (Bảng 2)
+    const sheet2 = b2.map(x => ({
+      'Chiến dịch': x.camp,
+      'Mã voucher': x.voucher || '',
+      'Tổng tiền hàng': x.tongTienHang,
+      'Chi nhánh': x.branch,
+      'Mã đơn hàng': x.maDH || '',
+      'Mã KH': x.maKH,
+      'Giá trị voucher': x.giaTriVoucher,
+      'Loại voucher': x.loaiVoucher || '',
+      'Kênh bán': x.kenhBan || '',
+      'Nguồn đơn': x.nguonDH || '',
+      'Tổng thanh toán': x.tongThanhToan,
+      'Ngày áp dụng': x.date ? x.date.toLocaleDateString('vi-VN') : ''
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet2), 'Đơn từ voucher');
+
+    // Sheet 3: Tổng đơn hệ thống (Bảng 3)
+    const sheet3 = b3.map(x => ({
+      'Kênh': x.kenh || '',
+      'Mã KH': x.maKH,
+      'Mã đơn hàng': x.maDH || '',
+      'Ngày mua': x.date ? x.date.toLocaleDateString('vi-VN') : '',
+      'Doanh thu': x.doanhThu,
+      'Mã chi nhánh': x.maCN || '',
+      'Tên chi nhánh': x.tenCN
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheet3), 'Tổng đơn hệ thống');
+
+    // Sheet 4: Tổng hợp chiến dịch
+    const camps = [...new Set(b1.map(x => x.camp))];
+    const totalRev = b3.reduce((s,x)=>s+x.doanhThu, 0);
+    const summary = camps.map(c => {
+      const m = getCampMetrics(c, b1, b2, b3);
+      return {
+        'Chiến dịch': c,
+        'Nguồn match': m.source === 'voucher_b2' ? 'Voucher (B2)' : 'Mã KH (B3)',
+        'SMS gửi': m.sentTotal,
+        'KH unique': m.uniqueSent,
+        'KH mua': m.uniqueBuy,
+        'CR (%)': +m.cr.toFixed(2),
+        'Số đơn': m.orders,
+        'ATV': Math.round(m.atv),
+        'Doanh thu': Math.round(m.rev),
+        '% Tổng DT': totalRev ? +(m.rev/totalRev*100).toFixed(2) : 0,
+        'Chi phí': Math.round(m.cost),
+        'ROI': +m.roi.toFixed(1)
+      };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), 'Tổng hợp chiến dịch');
+
+    const today = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, `GUMAC_CRM_Data_${today}.xlsx`);
+    showToast('✓ Đã tải xuống file Excel');
+  } catch(err){
+    console.error(err);
+    showToast('✗ Lỗi xuất Excel: ' + err.message, true);
+  }
+}
+
+/* ============== TOAST NOTIFICATION ============== */
+let toastTimer = null;
+function showToast(msg, isError){
+  let toast = document.getElementById('toast');
+  if (!toast){
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.className = 'toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.borderColor = isError ? 'var(--red)' : 'var(--line-2)';
+  toast.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+/* ============== RENDER ALL (LAZY) ============== */
+// Map mỗi section → hàm render tương ứng
+const SECTION_RENDERERS = {
+  'overview': renderOverview,
+  'customers': renderCustomersTab,
+  'campaigns': renderCampaignsTab,
+  'compare': renderCompare,
+  'sec-1': renderSection1,
+  'sec-2': renderSection2,
+  'sec-3': renderSection3,
+  'sec-4': renderSection4,
+  'sec-5': renderSection5,
+  'sec-6': renderSection6
+};
+// Theo dõi section nào đã render với data hiện tại
+let RENDERED = new Set();
+let CURRENT_SECTION = 'overview';
+
+function getCurrentSection(){
+  const active = document.querySelector('.nav-item.active');
+  return active ? active.dataset.section : 'overview';
+}
+
+// Render 1 section (nếu chưa render hoặc bị buộc render lại)
+function renderSection(sec, force){
+  if (!SECTION_RENDERERS[sec]) return;
+  if (RENDERED.has(sec) && !force) return;
+  try {
+    SECTION_RENDERERS[sec]();
+    RENDERED.add(sec);
+  } catch(e){
+    console.error('Lỗi render section', sec, e);
+  }
+}
+
+// Khi data đổi (filter/reload): xóa cache, render lại section đang xem,
+// các section khác sẽ render lazy khi user chuyển tới
 function renderAll(){
+  destroyCharts();
+  RENDERED.clear();
+  CURRENT_SECTION = getCurrentSection();
+  renderSection(CURRENT_SECTION, true);
+}
+
+// Khi đổi theme: chỉ cần re-render section đang hiển thị (nhẹ, mượt)
+function rerenderCurrentSection(){
+  const sec = getCurrentSection();
+  // Destroy charts của section hiện tại rồi vẽ lại
+  destroyCharts();
+  RENDERED.clear();
+  renderSection(sec, true);
+}
+
+function renderAllLegacy(){
   destroyCharts();
   renderOverview();
   renderCustomersTab();
@@ -3219,6 +3505,213 @@ function renderCampaignsTab(){
       scales:{ x: xAxisNice, y: { ...yAxisNice, ticks: {...yAxisNice.ticks, callback: v => fmtN(v)}, title:{display:true, text:'Số đơn dùng voucher', color: COLORS.muted}}}
     }
   });
+}
+
+/* ============== COMPARE - MONTH OVER MONTH ============== */
+function renderCompare(){
+  // Tính metrics theo từng tháng dựa trên RAW data (không phụ thuộc filter để so sánh chuẩn)
+  const { b1, b2, b3 } = STATE.raw;
+
+  // Gom data theo key tháng "YYYY-MM"
+  const monthsSet = new Set();
+  b1.forEach(x => { if (x.year && x.month) monthsSet.add(`${x.year}-${String(x.month).padStart(2,'0')}`); });
+  b2.forEach(x => { if (x.year && x.month) monthsSet.add(`${x.year}-${String(x.month).padStart(2,'0')}`); });
+  b3.forEach(x => { if (x.year && x.month) monthsSet.add(`${x.year}-${String(x.month).padStart(2,'0')}`); });
+
+  const months = [...monthsSet].sort();
+
+  // Nếu < 2 tháng: hiện empty state
+  if (months.length < 2){
+    document.getElementById('compareEmpty').style.display = 'block';
+    document.getElementById('compareContent').style.display = 'none';
+    document.getElementById('compareSingleMonth').textContent =
+      months.length === 1 ? `tháng ${months[0].slice(5)}/${months[0].slice(0,4)}` : '0 tháng';
+    return;
+  }
+
+  document.getElementById('compareEmpty').style.display = 'none';
+  document.getElementById('compareContent').style.display = 'block';
+
+  // Lấy tối đa 3 tháng gần nhất
+  const recent = months.slice(-3);
+
+  // Tính metrics cho mỗi tháng
+  const metricsByMonth = recent.map(mKey => {
+    const [y, m] = mKey.split('-').map(Number);
+    const mb1 = b1.filter(x => x.year === y && x.month === m);
+    const mb2 = b2.filter(x => x.year === y && x.month === m);
+    const mb3 = b3.filter(x => x.year === y && x.month === m);
+
+    const totalSent = mb1.length;
+    const uniqueSent = new Set(mb1.map(x=>x.maKH)).size;
+    const cost = mb1.reduce((s,x)=>s+x.chiPhi, 0);
+    // Camp metrics cho tháng này
+    const camps = [...new Set(mb1.map(x=>x.camp))];
+    let campRev = 0, campOrders = 0;
+    const buyers = new Set();
+    camps.forEach(c => {
+      const cm = getCampMetricsForMonth(c, mb1, mb2, mb3);
+      campRev += cm.rev; campOrders += cm.orders;
+      cm.buyers.forEach(k => buyers.add(k));
+    });
+    const totalRev = mb3.reduce((s,x)=>s+x.doanhThu, 0);
+    const uniqueBuy = buyers.size;
+    const cr = uniqueSent ? uniqueBuy/uniqueSent*100 : 0;
+    const crv = totalSent ? campOrders/totalSent*100 : 0;
+    const atv = campOrders ? campRev/campOrders : 0;
+    const roi = cost ? campRev/cost : 0;
+    const pctContrib = totalRev ? campRev/totalRev*100 : 0;
+
+    return {
+      key: mKey, label: `T${m}/${y}`,
+      totalSent, uniqueSent, uniqueBuy, cost, campRev, campOrders,
+      totalRev, cr, crv, atv, roi, pctContrib
+    };
+  });
+
+  // KPI cards: so sánh tháng mới nhất vs tháng liền trước
+  const latest = metricsByMonth[metricsByMonth.length-1];
+  const prev = metricsByMonth[metricsByMonth.length-2];
+
+  const kpiDefs = [
+    { key: 'campRev', label: 'Doanh thu SMS', fmt: fmtVN, higherBetter: true },
+    { key: 'cr', label: 'CR (%)', fmt: v => fmtPct(v), higherBetter: true },
+    { key: 'roi', label: 'ROI', fmt: v => v.toFixed(1)+'x', higherBetter: true },
+    { key: 'atv', label: 'ATV', fmt: fmtVN, higherBetter: true }
+  ];
+
+  document.getElementById('compareKpiGrid').innerHTML = kpiDefs.map(k => {
+    const cur = latest[k.key], pre = prev[k.key];
+    const delta = pre ? (cur - pre)/pre*100 : 0;
+    const isUp = delta >= 0;
+    const good = k.higherBetter ? isUp : !isUp;
+    return `
+      <div class="card">
+        <p class="card-title">${k.label}</p>
+        <div class="card-value amber">${k.fmt(cur)}</div>
+        <div class="card-sub" style="display:flex; align-items:center; gap:6px;">
+          <span class="card-trend ${good ? 'up' : 'down'}">${isUp ? '▲' : '▼'} ${Math.abs(delta).toFixed(1)}%</span>
+          <span>vs ${prev.label}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Charts
+  const labels = metricsByMonth.map(m => m.label);
+
+  // 1. Revenue trend
+  STATE.charts.cmp_revenue = new Chart(document.getElementById('cmp_revenue'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Doanh thu SMS', data: metricsByMonth.map(m=>m.campRev),
+      backgroundColor: COLORS.amber, borderRadius: 10, barThickness: 60,
+      datalabels: { anchor:'end', align:'end', offset:-2, color: COLORS.ink, font:{family:'Montserrat',size:11,weight:700}, formatter: v => fmtVN(v) }}]},
+    options: { maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => fmtVN(ctx.parsed.y) }}},
+      scales:{ x: xAxisNice, y: { ...yAxisNice, ticks:{...yAxisNice.ticks, callback: v=>fmtVN(v)}}}}
+  });
+
+  // 2. Sent & converted
+  STATE.charts.cmp_sent = new Chart(document.getElementById('cmp_sent'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'SMS gửi', data: metricsByMonth.map(m=>m.totalSent), backgroundColor: 'rgba(245,181,68,0.3)', borderColor: COLORS.amber, borderWidth:1.5, borderRadius:8, barThickness:34, yAxisID:'y',
+        datalabels:{ anchor:'end',align:'end',offset:-2,color:COLORS.ink,font:{family:'Montserrat',size:10,weight:700},formatter:v=>fmtN(v)}},
+      { label: 'KH chuyển đổi', data: metricsByMonth.map(m=>m.uniqueBuy), backgroundColor: COLORS.green, borderRadius:8, barThickness:20, yAxisID:'y1',
+        datalabels:{ anchor:'end',align:'end',offset:-2,color:COLORS.ink,font:{family:'Montserrat',size:10,weight:700},formatter:v=>fmtN(v)}}
+    ]},
+    options: { maintainAspectRatio:false,
+      plugins:{ legend:{display:true,position:'top'}, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label+': '+fmtN(ctx.parsed.y) }}},
+      scales:{ x: xAxisNice, y:{...yAxisNice,position:'left',ticks:{...yAxisNice.ticks,callback:v=>fmtN(v)}}, y1:{position:'right',grid:{display:false},border:{display:false},ticks:{callback:v=>fmtN(v),color:COLORS.muted,font:{family:'Montserrat',size:10}}}}}
+  });
+
+  // 3. CR & ROI
+  STATE.charts.cmp_crroi = new Chart(document.getElementById('cmp_crroi'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'CR (%)', data: metricsByMonth.map(m=>m.cr), borderColor: COLORS.amber, backgroundColor:'transparent', borderWidth:3, pointRadius:5, pointBackgroundColor:COLORS.amber, tension:0.3, yAxisID:'y',
+        datalabels:{ align:'top',color:COLORS.amber,font:{family:'Montserrat',size:11,weight:700},formatter:v=>v.toFixed(2)+'%'}},
+      { label: 'ROI (x)', data: metricsByMonth.map(m=>m.roi), borderColor: COLORS.green, backgroundColor:'transparent', borderWidth:3, pointRadius:5, pointBackgroundColor:COLORS.green, tension:0.3, yAxisID:'y1',
+        datalabels:{ align:'bottom',color:COLORS.green,font:{family:'Montserrat',size:11,weight:700},formatter:v=>v.toFixed(1)+'x'}}
+    ]},
+    options: { maintainAspectRatio:false,
+      plugins:{ legend:{display:true,position:'top'}, tooltip:{mode:'index'}},
+      scales:{ x: xAxisNice, y:{...yAxisNice,position:'left',ticks:{...yAxisNice.ticks,callback:v=>v+'%'}}, y1:{position:'right',grid:{display:false},border:{display:false},ticks:{callback:v=>v.toFixed(0)+'x',color:COLORS.muted,font:{family:'Montserrat',size:10}}}}}
+  });
+
+  // 4. ATV & Cost
+  STATE.charts.cmp_atvcost = new Chart(document.getElementById('cmp_atvcost'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'ATV', data: metricsByMonth.map(m=>m.atv), backgroundColor: COLORS.violet, borderRadius:8, barThickness:34,
+        datalabels:{ anchor:'end',align:'end',offset:-2,color:COLORS.ink,font:{family:'Montserrat',size:10,weight:700},formatter:v=>fmtVN(v)}},
+      { label: 'Chi phí SMS', data: metricsByMonth.map(m=>m.cost), backgroundColor: COLORS.red, borderRadius:8, barThickness:20,
+        datalabels:{ anchor:'end',align:'end',offset:-2,color:COLORS.ink,font:{family:'Montserrat',size:10,weight:700},formatter:v=>fmtVN(v)}}
+    ]},
+    options: { maintainAspectRatio:false,
+      plugins:{ legend:{display:true,position:'top'}, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label+': '+fmtVN(ctx.parsed.y) }}},
+      scales:{ x: xAxisNice, y:{...yAxisNice,ticks:{...yAxisNice.ticks,callback:v=>fmtVN(v)}}}}
+  });
+
+  // Detailed table
+  const rows = [
+    { label: 'SMS đã gửi', key: 'totalSent', fmt: fmtN, higherBetter: true },
+    { label: 'KH unique nhận', key: 'uniqueSent', fmt: fmtN, higherBetter: true },
+    { label: 'KH chuyển đổi', key: 'uniqueBuy', fmt: fmtN, higherBetter: true },
+    { label: 'Số đơn từ SMS', key: 'campOrders', fmt: fmtN, higherBetter: true },
+    { label: 'CR (%)', key: 'cr', fmt: v=>fmtPct(v), higherBetter: true },
+    { label: 'CRV - Tỷ lệ đơn (%)', key: 'crv', fmt: v=>fmtPct(v), higherBetter: true },
+    { label: 'ATV', key: 'atv', fmt: fmtVN, higherBetter: true },
+    { label: 'Doanh thu SMS', key: 'campRev', fmt: fmtVN, higherBetter: true },
+    { label: 'Đóng góp Tổng DT (%)', key: 'pctContrib', fmt: v=>fmtPct(v), higherBetter: true },
+    { label: 'Chi phí SMS', key: 'cost', fmt: fmtVN, higherBetter: false },
+    { label: 'ROI', key: 'roi', fmt: v=>v.toFixed(1)+'x', higherBetter: true },
+    { label: 'Tổng DT hệ thống', key: 'totalRev', fmt: fmtVN, higherBetter: true }
+  ];
+
+  // Head
+  document.getElementById('compareTableHead').innerHTML =
+    '<th>Chỉ số</th>' + metricsByMonth.map((m,i) => {
+      return `<th class="num">${m.label}${i === metricsByMonth.length-1 ? ' <span style="color:var(--amber)">(mới nhất)</span>' : ''}</th>`;
+    }).join('') + '<th class="num">Xu hướng</th>';
+
+  document.querySelector('#compareTable tbody').innerHTML = rows.map(r => {
+    const vals = metricsByMonth.map(m => m[r.key]);
+    const cur = vals[vals.length-1], pre = vals[vals.length-2];
+    const delta = pre ? (cur-pre)/pre*100 : 0;
+    const isUp = delta >= 0;
+    const good = r.higherBetter ? isUp : !isUp;
+    return `
+      <tr>
+        <td><b>${r.label}</b></td>
+        ${vals.map((v,i) => `<td class="num"${i===vals.length-1?' style="color:var(--amber);font-weight:700;"':''}>${r.fmt(v)}</td>`).join('')}
+        <td class="num">
+          <span class="card-trend ${good?'up':'down'}">${isUp?'▲':'▼'} ${Math.abs(delta).toFixed(1)}%</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// Helper: tính camp metrics cho 1 tập data tháng cụ thể
+function getCampMetricsForMonth(camp, mb1, mb2, mb3){
+  const sent = mb1.filter(x => x.camp === camp);
+  const sentKH = new Set(sent.map(x => x.maKH));
+  if (isVoucherCamp(camp)){
+    const matched = mb2.filter(x => x.camp === camp);
+    return {
+      buyers: new Set(matched.map(x => x.maKH)),
+      orders: matched.length,
+      rev: matched.reduce((s,x) => s + x.tongThanhToan, 0)
+    };
+  } else {
+    const matched = mb3.filter(x => sentKH.has(x.maKH));
+    return {
+      buyers: new Set(matched.map(x => x.maKH)),
+      orders: new Set(matched.map(x => x.maDH).filter(Boolean)).size,
+      rev: matched.reduce((s,x) => s + x.doanhThu, 0)
+    };
+  }
 }
 
 /* ============== SECTION 1 ============== */
