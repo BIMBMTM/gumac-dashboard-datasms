@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>GUMAC · Atelier CRM v4.5</title>
+<title>GUMAC · Atelier CRM v4.6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -2338,7 +2338,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     </div>
 
     <div style="margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; display:flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-      <div>© GUMAC · Atelier CRM v4.5 · Digital Marketing Team</div>
+      <div>© GUMAC · Atelier CRM v4.6 · Digital Marketing Team</div>
       <div>Master Artisan · Live data from Google Sheets</div>
     </div>
   </main>
@@ -2825,15 +2825,16 @@ function getCampMetrics(camp, b1All, b2All, b3All){
   const cost = sent.reduce((s,x) => s + x.chiPhi, 0);
 
   let buyers, orders, rev, atv, source;
-  if (isVoucherCamp(camp)){
-    // Match B2 bằng campaign code
-    const matched = b2All.filter(x => x.camp === camp);
-    buyers = new Set(matched.map(x => x.maKH));
-    orders = matched.length;
-    rev = matched.reduce((s,x) => s + x.tongThanhToan, 0);
+  // Thử match B2 trước (qua mã chiến dịch) nếu là camp voucher
+  const b2matched = isVoucherCamp(camp) ? b2All.filter(x => x.camp === camp) : [];
+  if (b2matched.length > 0){
+    // Có voucher trong B2 → dùng B2
+    buyers = new Set(b2matched.map(x => x.maKH));
+    orders = b2matched.length;
+    rev = b2matched.reduce((s,x) => s + x.tongThanhToan, 0);
     source = 'voucher_b2';
   } else {
-    // Match B3 bằng Mã KH (KH nhận SMS có đơn trong B3)
+    // Không phải voucher camp HOẶC voucher camp nhưng B2 trống → fallback match B3 bằng Mã KH
     const matched = b3All.filter(x => sentKH.has(x.maKH));
     buyers = new Set(matched.map(x => x.maKH));
     orders = new Set(matched.map(x => x.maDH).filter(Boolean)).size;
@@ -4434,12 +4435,12 @@ function renderCompare(){
 function getCampMetricsForMonth(camp, mb1, mb2, mb3){
   const sent = mb1.filter(x => x.camp === camp);
   const sentKH = new Set(sent.map(x => x.maKH));
-  if (isVoucherCamp(camp)){
-    const matched = mb2.filter(x => x.camp === camp);
+  const b2matched = isVoucherCamp(camp) ? mb2.filter(x => x.camp === camp) : [];
+  if (b2matched.length > 0){
     return {
-      buyers: new Set(matched.map(x => x.maKH)),
-      orders: matched.length,
-      rev: matched.reduce((s,x) => s + x.tongThanhToan, 0)
+      buyers: new Set(b2matched.map(x => x.maKH)),
+      orders: b2matched.length,
+      rev: b2matched.reduce((s,x) => s + x.tongThanhToan, 0)
     };
   } else {
     const matched = mb3.filter(x => sentKH.has(x.maKH));
