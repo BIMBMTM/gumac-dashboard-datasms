@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>GUMAC · Atelier CRM v4.7</title>
+<title>GUMAC · Atelier CRM v4.8</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -161,11 +161,11 @@ body{
 }
 .brand-mark{
   width: 36px; height: 36px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--amber-deep), var(--amber-bright));
-  display:grid; place-items:center; color: var(--bg); font-weight: 800; font-size: 16px;
+  background: #ffffff;
+  display:grid; place-items:center;
   flex-shrink: 0;
   box-shadow: 0 0 14px -4px var(--amber-glow);
-  letter-spacing: -0.02em;
+  overflow: hidden; padding: 4px;
 }
 .brand-text{ transition: opacity .2s ease; min-width: 0;}
 .brand-name{ font-weight: 700; font-size: 14px; color: var(--amber); letter-spacing: 0.02em;}
@@ -299,10 +299,10 @@ main{ padding: 24px 32px 80px 32px; max-width: 1600px; }
 }
 .page-actions{ display: flex; gap: 10px;}
 .btn{
-  padding: 10px 18px; border-radius: 10px;
-  font-size: 12.5px; font-weight: 600;
+  padding: 10px 20px; border-radius: 10px;
+  font-size: 13px; font-weight: 600;
   cursor: pointer; border: 1px solid var(--line);
-  background: var(--surface); color: var(--ink-2);
+  background: var(--surface-2); color: var(--ink-2);
   transition: all .2s ease;
   letter-spacing: 0.01em;
 }
@@ -911,7 +911,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark">G</div>
+      <div class="brand-mark"><img src="data:image/png;base64,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" alt="GUMAC" style="width:100%;height:100%;object-fit:contain;"/></div>
       <div class="brand-text">
         <div class="brand-name">GUMAC · Atelier</div>
         <div class="brand-sub">Master Artisan</div>
@@ -983,10 +983,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
           <h1 class="page-title">CRM Monitor</h1>
           <p class="page-sub">Real-time telemetry · Tổng quan toàn hệ thống GUMAC</p>
         </div>
-        <div class="page-actions">
-          <button class="btn">Xuất báo cáo</button>
-          <button class="btn btn-amber">Tạo chiến dịch</button>
-        </div>
+
       </div>
 
       <div class="kpi-grid">
@@ -1012,14 +1009,24 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
         </div>
       </div>
 
-      <div class="kpi-grid" style="grid-template-columns: repeat(2, 1fr); margin-top: 14px;">
+      <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-top: 14px;">
         <div class="card">
-          <p class="card-title">ATV · Average Transaction Value</p>
+          <p class="card-title">ATV · Giá trị TB mỗi đơn</p>
           <div class="card-value amber" id="kpiATV">—</div>
-          <div class="card-sub" id="kpiATVSub">Giá trị TB mỗi đơn từ chiến dịch SMS</div>
+          <div class="card-sub" id="kpiATVSub">Doanh thu / Số đơn</div>
         </div>
         <div class="card">
-          <p class="card-title">CRV · Tỷ lệ chuyển đổi đơn</p>
+          <p class="card-title">ARPU · Giá trị TB mỗi khách</p>
+          <div class="card-value amber" id="kpiARPU">—</div>
+          <div class="card-sub" id="kpiARPUSub">Doanh thu / Số KH chuyển đổi</div>
+        </div>
+        <div class="card">
+          <p class="card-title">CRV · Tỷ lệ chuyển khách</p>
+          <div class="card-value amber" id="kpiCRVCust">—</div>
+          <div class="card-sub" id="kpiCRVCustSub">KH mua / KH đã gửi (theo ID)</div>
+        </div>
+        <div class="card">
+          <p class="card-title">CRV đơn · Tỷ lệ chuyển đổi đơn</p>
           <div class="card-value amber" id="kpiCRV">—</div>
           <div class="card-sub" id="kpiCRVSub">Số đơn / Số SMS đã gửi</div>
         </div>
@@ -1144,9 +1151,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
           <h1 class="page-title">Campaign Workshop</h1>
           <p class="page-sub">Quản lý chiến dịch SMS · Theo dõi hiệu suất & ROI</p>
         </div>
-        <div class="page-actions">
-          <button class="btn btn-amber">+ Chiến dịch mới</button>
-        </div>
+
       </div>
 
       <div class="card table-card">
@@ -1166,6 +1171,8 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
                 <th class="num">CR</th>
                 <th class="num">Đơn</th>
                 <th class="num">ATV</th>
+                <th class="num">ARPU</th>
+                <th class="num">CRV</th>
                 <th class="num">Doanh thu</th>
                 <th class="num">Chi phí</th>
                 <th class="num">ROI</th>
@@ -2359,7 +2366,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     </div>
 
     <div style="margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; display:flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-      <div>© GUMAC · Atelier CRM v4.7 · Digital Marketing Team</div>
+      <div>© GUMAC · Atelier CRM v4.8 · Digital Marketing Team</div>
       <div>Master Artisan · Live data from Google Sheets</div>
     </div>
   </main>
@@ -3807,11 +3814,19 @@ function renderOverview(){
   // ATV = Doanh thu camp / Số đơn camp
   const atv = campOrders ? campRev/campOrders : 0;
   document.getElementById('kpiATV').textContent = fmtVN(atv);
-  document.getElementById('kpiATVSub').textContent = `${fmtN(campOrders)} đơn · DT từ SMS ${fmtVN(campRev)}`;
-  // CRV = Tỷ lệ chuyển đổi đơn = Số đơn / Số SMS đã gửi
+  document.getElementById('kpiATVSub').textContent = `${fmtN(campOrders)} đơn · DT ${fmtVN(campRev)}`;
+  // ARPU = Doanh thu / Số KH chuyển đổi (giá trị TB mỗi khách)
+  const arpu = uniqueBuy ? campRev/uniqueBuy : 0;
+  document.getElementById('kpiARPU').textContent = fmtVN(arpu);
+  document.getElementById('kpiARPUSub').textContent = `${fmtN(uniqueBuy)} KH chuyển đổi`;
+  // CRV khách = Số KH mua / Tổng KH đã gửi (theo ID khách hàng)
+  const crvCust = uniqueSent ? uniqueBuy/uniqueSent*100 : 0;
+  document.getElementById('kpiCRVCust').textContent = fmtPct(crvCust);
+  document.getElementById('kpiCRVCustSub').textContent = `${fmtN(uniqueBuy)} / ${fmtN(uniqueSent)} KH (theo ID)`;
+  // CRV đơn = Số đơn / Số SMS đã gửi
   const crv = totalSent ? campOrders/totalSent*100 : 0;
   document.getElementById('kpiCRV').textContent = fmtPct(crv);
-  document.getElementById('kpiCRVSub').textContent = `${fmtN(campOrders)} đơn / ${fmtN(totalSent)} SMS gửi`;
+  document.getElementById('kpiCRVSub').textContent = `${fmtN(campOrders)} đơn / ${fmtN(totalSent)} SMS`;
 
   // Progress bars
   setProgress('prCR', 'prCRBar', cr, Math.min(cr*8, 100), '%');
@@ -3921,11 +3936,18 @@ function renderMultiMetricChart(b1, b2, b3){
       label: m.label,
       data: days.map(d => getVal(key, daily[d])),
       borderColor: m.color,
-      backgroundColor: m.color + '22',
+      backgroundColor: (ctx) => {
+        const {ctx: c, chartArea} = ctx.chart;
+        if (!chartArea) return m.color + '22';
+        const grad = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+        grad.addColorStop(0, m.color + '55');
+        grad.addColorStop(1, m.color + '03');
+        return grad;
+      },
       yAxisID: m.axis,
       _unit: m.unit,
-      fill: OV_ACTIVE.length === 1,
-      tension: 0.4, pointRadius: 2, pointHoverRadius: 5, borderWidth: 2.5,
+      fill: true,
+      tension: 0.4, pointRadius: 0, pointHoverRadius: 5, borderWidth: 2.5,
       pointBackgroundColor: m.color
     };
   });
@@ -4160,7 +4182,9 @@ function renderCampaignsTab(){
     return {
       c, month: monthLabel, source: m.source,
       sentTotal: m.sentTotal, uniqueSent: m.uniqueSent, uniqueBuy: m.uniqueBuy,
-      cr: m.cr, orders: m.orders, atv: m.atv, rev: m.rev, cost: m.cost, roi: m.roi
+      cr: m.cr, orders: m.orders, atv: m.atv, rev: m.rev, cost: m.cost, roi: m.roi,
+      arpu: m.uniqueBuy ? m.rev/m.uniqueBuy : 0,
+      crv: m.uniqueSent ? m.uniqueBuy/m.uniqueSent*100 : 0
     };
   }).sort((a,b) => b.rev - a.rev);
 
@@ -4174,12 +4198,14 @@ function renderCampaignsTab(){
       <td class="num"><b style="color: ${r.cr>=4?COLORS.green:COLORS.amber}">${fmtPct(r.cr)}</b></td>
       <td class="num">${fmtN(r.orders)}</td>
       <td class="num">${fmtVN(r.atv)}</td>
+      <td class="num">${fmtVN(r.arpu)}</td>
+      <td class="num">${fmtPct(r.crv)}</td>
       <td class="num"><b style="color: var(--amber);">${fmtVN(r.rev)}</b></td>
       <td class="num">${fmtVN(r.cost)}</td>
       <td class="num"><b style="color: var(--green);">${r.roi.toFixed(1)}x</b></td>
       <td><span class="tag tag-green">Hoàn thành</span></td>
     </tr>
-  `).join('') || '<tr><td colspan="12" style="text-align:center; color: var(--muted);">Không có chiến dịch</td></tr>';
+  `).join('') || '<tr><td colspan="14" style="text-align:center; color: var(--muted);">Không có chiến dịch</td></tr>';
 
   // ========== CHARTS ==========
   if (rows.length === 0) return;
@@ -4422,7 +4448,7 @@ function renderCompare(){
   STATE.charts.cmp_crroi = new Chart(document.getElementById('cmp_crroi'), {
     type: 'line',
     data: { labels, datasets: [
-      { label: 'CR (%)', data: metricsByMonth.map(m=>m.cr), borderColor: COLORS.amber, backgroundColor:'transparent', borderWidth:3, pointRadius:5, pointBackgroundColor:COLORS.amber, tension:0.3, yAxisID:'y',
+      { label: 'CR (%)', data: metricsByMonth.map(m=>m.cr), borderColor: COLORS.amber, backgroundColor:'rgba(59,130,246,0.08)', fill:true, borderWidth:3, pointRadius:5, pointBackgroundColor:COLORS.amber, tension:0.3, yAxisID:'y',
         datalabels:{ align:'top',color:COLORS.amber,font:{family:'Inter',size:11,weight:700},formatter:v=>v.toFixed(2)+'%'}},
       { label: 'ROI (x)', data: metricsByMonth.map(m=>m.roi), borderColor: COLORS.green, backgroundColor:'transparent', borderWidth:3, pointRadius:5, pointBackgroundColor:COLORS.green, tension:0.3, yAxisID:'y1',
         datalabels:{ align:'bottom',color:COLORS.green,font:{family:'Inter',size:11,weight:700},formatter:v=>v.toFixed(1)+'x'}}
@@ -4825,12 +4851,33 @@ function renderSection3(){
     sentByRfm[g].add(x.maKH);
     khRfm[x.maKH] = g;
   });
-  b2.forEach(x => {
-    const g = khRfm[x.maKH] || 'Khác';
-    if(!buyByRfm[g]) buyByRfm[g] = { orders: 0, rev: 0, buyers: new Set() };
-    buyByRfm[g].orders += 1;
-    buyByRfm[g].rev += x.tongThanhToan;
-    buyByRfm[g].buyers.add(x.maKH);
+
+  // KH đã mua: gộp từ B2 (voucher) + B3 (match Mã KH cho camp non-voucher)
+  // → đảm bảo camp như "QUẢNG CÁO CTKM OFFLINE" (match B3) cũng có dữ liệu phân khúc
+  const camps = [...new Set(b1.map(x => x.camp))];
+  const buyerRows = [];  // {maKH, rfmGroup, rev, isOrder}
+  camps.forEach(c => {
+    const m = getCampMetrics(c, b1, b2, b3);
+    if (m.source === 'voucher_b2'){
+      b2.filter(x => x.camp === c).forEach(x => {
+        buyerRows.push({ maKH: x.maKH, g: khRfm[x.maKH] || 'Khác', rev: x.tongThanhToan, order: 1 });
+      });
+    } else {
+      // match B3 theo Mã KH + lọc kênh + ngưỡng (cùng logic getCampMetrics)
+      const sentKH = m.sentKH;
+      const campCh = campChannel(c);
+      const minVal = campMinOrderValue(c);
+      b3.filter(x => sentKH.has(x.maKH) && b3ChannelMatch(x, campCh) && (minVal===0 || x.doanhThu>=minVal))
+        .forEach(x => {
+          buyerRows.push({ maKH: x.maKH, g: khRfm[x.maKH] || 'Khác', rev: x.doanhThu, order: 1 });
+        });
+    }
+  });
+  buyerRows.forEach(r => {
+    if(!buyByRfm[r.g]) buyByRfm[r.g] = { orders: 0, rev: 0, buyers: new Set() };
+    buyByRfm[r.g].orders += r.order;
+    buyByRfm[r.g].rev += r.rev;
+    buyByRfm[r.g].buyers.add(r.maKH);
   });
 
   const groups = Object.keys(sentByRfm).sort((a,b) => sentByRfm[b].size - sentByRfm[a].size);
