@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>GUMAC · Atelier CRM v4.8</title>
+<title>GUMAC · Atelier CRM v4.9</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -2366,7 +2366,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     </div>
 
     <div style="margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; display:flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-      <div>© GUMAC · Atelier CRM v4.8 · Digital Marketing Team</div>
+      <div>© GUMAC · Atelier CRM v4.9 · Digital Marketing Team</div>
       <div>Master Artisan · Live data from Google Sheets</div>
     </div>
   </main>
@@ -2785,50 +2785,62 @@ function parseDate(s, fmt){
 /* ============== PARSE WITH NEW STRUCTURE ============== */
 function splitTables(rows){
   const data = rows.slice(2).filter(r => r && r.length > 5);
-  // Auto-detect format ngày cho từng cột
+  // Auto-detect format ngày cho từng cột (B1 cột 0, B2 cột 24, B3 cột 32)
   const fmt1 = detectDateFormat(data, 0);
-  const fmt2 = detectDateFormat(data, 23);
-  const fmt3 = detectDateFormat(data, 30);
-  console.log('Date formats detected:', { b1: fmt1, b2: fmt2, b3: fmt3 });
+  const fmt2 = detectDateFormat(data, 24);
+  const fmt3 = detectDateFormat(data, 32);
+
+  // Parse "Tháng" (d/m/yyyy) → monthKey "yyyy-mm"
+  const monthKeyOf = (s) => {
+    const m = String(s||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    return m ? `${m[3]}-${String(parseInt(m[2])).padStart(2,'0')}` : null;
+  };
 
   const b1 = [], b2 = [], b3 = [];
   data.forEach(r => {
-    // BẢNG 1: cột A-J (0..9)
+    // BẢNG 1 — DATA ĐẦU VÀO: cột 0-9
+    // Tháng0, Chiến dịch1, MaKH2, Tên3, GT4, RFM_Group5, RFM_Seg6, SDT7, ChiPhí8, ChiNhánh9
     if (r[2] && String(r[2]).trim()){
       const d = parseDate(r[0], fmt1);
       b1.push({
         date: d, month: d?d.getMonth()+1:null, year: d?d.getFullYear():null,
+        monthKey: monthKeyOf(r[0]),
         camp: (r[1]||'').trim(), maKH: String(r[2]).trim(),
         ten: r[3], gender: r[4], rfmGroup: r[5], rfmSeg: r[6],
         sdt: r[7], chiPhi: toNum(r[8]), branch: (r[9]||'').trim()
       });
     }
-    // BẢNG 2: cột M-Y (12..24)
-    if (r[17] && String(r[17]).trim()){
-      const d = parseDate(r[23], fmt2);
+    // BẢNG 2 — KẾT QUẢ VOUCHER: cột 12-25
+    // Tháng12, Chiến dịch13, MaVoucher14, TongTienHàng15, ChiNhánh16, MaDH17, MaKH18,
+    // GiáTrịVoucher19, LoạiVoucher20, Kênh21, Nguồn22, TổngTT23, Ngày24, MôTả25
+    if (r[18] && String(r[18]).trim()){
+      const d = parseDate(r[24], fmt2);
       b2.push({
-        camp: (r[12]||'').trim(), voucher: r[13],
-        tongTienHang: toNum(r[14]),
-        branch: (r[15]||'').trim(),
-        maDH: r[16], maKH: String(r[17]).trim(),
-        giaTriVoucher: toNum(r[18]),
-        loaiVoucher: r[19], kenhBan: r[20], nguonDH: r[21],
-        tongThanhToan: toNum(r[22]),
+        monthKey: monthKeyOf(r[12]),
+        camp: (r[13]||'').trim(), voucher: r[14],
+        tongTienHang: toNum(r[15]),
+        branch: (r[16]||'').trim(),
+        maDH: r[17], maKH: String(r[18]).trim(),
+        giaTriVoucher: toNum(r[19]),
+        loaiVoucher: r[20], kenhBan: r[21], nguonDH: r[22],
+        tongThanhToan: toNum(r[23]),
         date: d, month: d?d.getMonth()+1:null, year: d?d.getFullYear():null,
-        moTa: r[24],
-        giaTriDH: toNum(r[14]),
-        doanhThu: toNum(r[22])
+        moTa: r[25],
+        giaTriDH: toNum(r[15]),
+        doanhThu: toNum(r[23])
       });
     }
-    // BẢNG 3: AA-AH (26..33)
-    if (r[27] && String(r[27]).trim()){
-      const d = parseDate(r[30], fmt3);
+    // BẢNG 3 — BÁO CÁO MUA HÀNG: cột 27-35
+    // Tháng27, Kênh28, MaKH29, SDT30, MaDH31, Ngày32, DoanhThu33, MaCN34, TenCN35
+    if (r[29] && String(r[29]).trim()){
+      const d = parseDate(r[32], fmt3);
       b3.push({
-        kenh: r[26], maKH: String(r[27]).trim(), sdt: r[28],
-        maDH: r[29],
+        monthKey: monthKeyOf(r[27]),
+        kenh: (r[28]||'').trim(), maKH: String(r[29]).trim(), sdt: r[30],
+        maDH: r[31],
         date: d, month: d?d.getMonth()+1:null, year: d?d.getFullYear():null,
-        doanhThu: toNum(r[31]),
-        maCN: r[32], tenCN: (r[33]||'').trim()
+        doanhThu: toNum(r[33]),
+        maCN: r[34], tenCN: (r[35]||'').trim()
       });
     }
   });
@@ -2857,8 +2869,16 @@ function campChannel(campName){
 // Trả về 0 nếu không có ngưỡng (không lọc theo giá trị)
 function campMinOrderValue(campName){
   const c = (campName||'').toUpperCase();
-  // Override đặc biệt: camp ÁO THUN ngưỡng thực 599K (tên ghi 559K)
-  if (c.includes('ÁO THUN') || c.includes('AO THUN')) return 599000;
+  // Camp ÁO THUN: đọc ngưỡng từ tên; riêng "559K" (T6) thực tế là 599K
+  if (c.includes('ÁO THUN') || c.includes('AO THUN')){
+    const m = c.match(/(\d{3})\s*K/);
+    if (m){
+      let v = parseInt(m[1]);
+      if (v === 559) v = 599;   // tên T6 ghi sai
+      return v * 1000;
+    }
+    return 599000;
+  }
   const m = (campName||'').match(/(\d{2,4})\s*K\b/i);
   if (m) return parseInt(m[1]) * 1000;
   return 0;
@@ -2879,22 +2899,24 @@ function getCampMetrics(camp, b1All, b2All, b3All){
   const sent = b1All.filter(x => x.camp === camp);
   const sentKH = new Set(sent.map(x => x.maKH));
   const cost = sent.reduce((s,x) => s + x.chiPhi, 0);
+  const campMonths = new Set(sent.map(x => x.monthKey).filter(Boolean));
+  const monthMatch = (x) => campMonths.size === 0 || !x.monthKey || campMonths.has(x.monthKey);
 
   let buyers, orders, rev, atv, source;
-  // Thử match B2 trước (qua mã chiến dịch) nếu là camp voucher
-  const b2matched = isVoucherCamp(camp) ? b2All.filter(x => x.camp === camp) : [];
+  // Match B2 trước (Chiến dịch + Tháng) nếu là camp voucher
+  const b2matched = isVoucherCamp(camp) ? b2All.filter(x => x.camp === camp && monthMatch(x)) : [];
   if (b2matched.length > 0){
-    // Có voucher trong B2 → dùng B2
     buyers = new Set(b2matched.map(x => x.maKH));
     orders = b2matched.length;
     rev = b2matched.reduce((s,x) => s + x.tongThanhToan, 0);
     source = 'voucher_b2';
   } else {
-    // Fallback match B3 bằng Mã KH, có lọc theo kênh (online/offline) + ngưỡng giá trị đơn
+    // Match B3: Tháng + Mã KH + kênh (online/offline) + ngưỡng giá trị đơn
     const campCh = campChannel(camp);
     const minVal = campMinOrderValue(camp);
     const matched = b3All.filter(x =>
       sentKH.has(x.maKH) &&
+      monthMatch(x) &&
       b3ChannelMatch(x, campCh) &&
       (minVal === 0 || x.doanhThu >= minVal)
     );
@@ -3488,10 +3510,9 @@ function resetZNSFilter(){
 // 4 nhóm khảo sát: ID Temp → cấu hình cột
 // (578937 OFFLINE | 228525 ONLINE Đơn bán | 462809 ONLINE Đơn đổi | 585523 ONLINE Trải nghiệm)
 const ZNS_GROUPS = [
-  { key: 'sale',     name: 'Đơn bán ONLINE · 228525',        idTemp: '228525', idtCol: 8,  noCol: 9,  phoneCol: 10, dateCol: 11, ratingCol: 15, reasonStart: 17, reasonEnd: 29, color: '#6ba3ff' },
-  { key: 'exchange', name: 'Đơn đổi ONLINE · 462809',        idTemp: '462809', idtCol: 31, noCol: 32, phoneCol: 33, dateCol: 34, ratingCol: 38, reasonStart: 40, reasonEnd: 46, color: '#5fd49a' },
-  { key: 'offline',  name: 'Trải nghiệm OFFLINE · 578937',   idTemp: '578937', idtCol: 48, noCol: 49, phoneCol: 50, dateCol: 51, ratingCol: 55, reasonStart: 57, reasonEnd: 65, color: '#3b82f6' },
-  { key: 'exp',      name: 'Trải nghiệm OFFLINE · 585523',   idTemp: '585523', idtCol: 67, noCol: 68, phoneCol: 69, dateCol: 70, ratingCol: 74, reasonStart: 76, reasonEnd: 83, color: '#b89aff' }
+  { key: 'sale',     name: 'Đơn bán ONLINE',    idTemps: ['228525','591853'],          idCol: 9,  phoneCol: 11, dateCol: 12, ratingCol: 16, critCol: 18, color: '#6ba3ff' },
+  { key: 'exchange', name: 'Đơn đổi ONLINE',    idTemps: ['462809','591310'],          idCol: 22, phoneCol: 24, dateCol: 25, ratingCol: 29, critCol: 31, color: '#5fd49a' },
+  { key: 'exp',      name: 'Trải nghiệm',       idTemps: ['492549','578937','585523'], idCol: 35, phoneCol: 37, dateCol: 38, ratingCol: 42, critCol: 44, color: '#3b82f6' }
 ];
 
 // Map mỗi cột lý do → 9 chủ đề chuẩn + cực (khen/chê)
@@ -3535,78 +3556,79 @@ function normPhone(p){
 function splitZNS(rows){
   const header = rows[1] || [];
   const data = rows.slice(2);
+  const mkOf = (s) => {
+    const m = String(s||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    return m ? `${m[3]}-${String(parseInt(m[2])).padStart(2,'0')}` : null;
+  };
 
-  // BẢNG 1: DATA ĐẦU VÀO (cột 0-6). Cột 0 = Tháng (d/m/yyyy), mỗi ID Temp = 1 chiến dịch.
+  // BẢNG 1: DATA ĐẦU VÀO (cột 0-6). Tháng0, Tên mẫu1, SĐT2, Chi phí3, MĐH4, Chi nhánh5, ID Temp6
   const sent = [];
-  const phoneCampBranch = {};
-  const phoneBranch = {};
+  const phoneBranch = {};       // np → chi nhánh
+  const idtPhoneBranch = {};    // idTemp|np → chi nhánh
   data.forEach(r => {
     if (r && r[1] && String(r[1]).trim() && r[2] && String(r[2]).trim()){
       const phone = String(r[2]).trim();
       const np = normPhone(phone);
       const branch = String(r[5]||'').trim();
       const idTemp = String(r[6]||'').trim();
-      // Parse tháng từ cột 0 (d/m/yyyy)
-      const md = String(r[0]||'').trim().match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-      const monthKey = md ? `${md[3]}-${String(parseInt(md[2])).padStart(2,'0')}` : null;
       sent.push({
-        monthKey,
+        monthKey: mkOf(r[0]),
         type: String(r[1]).trim(), phone, np,
         cost: parseFloat(String(r[3]||'0').replace(/[^\d]/g,'')) || 0,
         mdh: String(r[4]||'').trim(),
         branch, idTemp
       });
       if (np && branch){
-        const key = idTemp + '|' + np;
-        if (!phoneCampBranch[key]) phoneCampBranch[key] = branch;
+        if (!idtPhoneBranch[idTemp+'|'+np]) idtPhoneBranch[idTemp+'|'+np] = branch;
         if (!phoneBranch[np]) phoneBranch[np] = branch;
       }
     }
   });
 
-  // BẢNG 6-7: Data KH (cho trang RFM)
-  // KH OFFLINE: id=85, phone=88, RFM_Group=89, RFM_Segment=90
-  // KH ONLINE: id=99, RFM_Group=102, RFM_Segment=103, SDT=108
+  // BẢNG KH (cho RFM): OFFLINE cột 47-59 (phone=50, RFM_Group=51, RFM_Segment=52)
+  //                    ONLINE cột 61-75 (SDT=70, RFM_Group=64, RFM_Segment=65)
   const rfmLookup = {};
   data.forEach(r => {
-    if (r && r[85] && String(r[85]).trim() && r[88] && String(r[88]).trim()){
-      const np = normPhone(r[88]);
-      if (np && !rfmLookup[np]) rfmLookup[np] = { group: String(r[89]||'').trim(), seg: String(r[90]||'').trim(), src: 'OFFLINE' };
+    if (r && r[47] && String(r[47]).trim() && r[50] && String(r[50]).trim()){
+      const np = normPhone(r[50]);
+      if (np && !rfmLookup[np]) rfmLookup[np] = { group: String(r[51]||'').trim(), seg: String(r[52]||'').trim(), src: 'OFFLINE' };
     }
-    if (r && r[99] && String(r[99]).trim() && r[108] && String(r[108]).trim()){
-      const np = normPhone(r[108]);
-      if (np && !rfmLookup[np]) rfmLookup[np] = { group: String(r[102]||'').trim(), seg: String(r[103]||'').trim(), src: 'ONLINE' };
+    if (r && r[61] && String(r[61]).trim() && r[70] && String(r[70]).trim()){
+      const np = normPhone(r[70]);
+      if (np && !rfmLookup[np]) rfmLookup[np] = { group: String(r[64]||'').trim(), seg: String(r[65]||'').trim(), src: 'ONLINE' };
     }
   });
 
-  // BẢNG 2-5: kết quả khảo sát từng chiến dịch (match: verify ID Temp + chi nhánh 2 tầng qua SĐT)
+  // BẢNG KHẢO SÁT: 3 nhóm, mỗi nhóm gộp nhiều ID Temp. Cột Tiêu chí = text lý do.
   const groups = {};
   ZNS_GROUPS.forEach(g => {
-    const groupSent = sent.filter(s => s.idTemp === g.idTemp);
+    const idSet = new Set(g.idTemps);
+    const groupSent = sent.filter(s => idSet.has(s.idTemp));
     const responses = [];
     const phoneCount = {};
     let branchMatched = 0;
     data.forEach(r => {
-      if (r && r[g.noCol] && String(r[g.noCol]).trim() && r[g.ratingCol] && String(r[g.ratingCol]).trim()){
+      if (r && r[g.ratingCol] && String(r[g.ratingCol]).trim()){
         const rating = parseInt(String(r[g.ratingCol]).trim());
         if (rating >= 1 && rating <= 5){
-          const rowIdt = String(r[g.idtCol]||'').trim();
-          if (rowIdt && rowIdt !== g.idTemp) return;
+          const rowId = String(r[g.idCol]||'').trim();
+          // Verify: ID của dòng phải thuộc nhóm (nếu có cột ID)
+          if (rowId && !idSet.has(rowId)) return;
           const phone = String(r[g.phoneCol]||'').trim();
           const np = normPhone(phone);
           phoneCount[np] = (phoneCount[np]||0) + 1;
-          let branch = phoneCampBranch[g.idTemp + '|' + np] || phoneBranch[np] || null;
+          // Match chi nhánh: ưu tiên (idTemp|np), fallback np
+          let branch = null;
+          for (const idt of g.idTemps){ if (idtPhoneBranch[idt+'|'+np]){ branch = idtPhoneBranch[idt+'|'+np]; break; } }
+          if (!branch) branch = phoneBranch[np] || null;
           if (branch) branchMatched++;
-          const reasons = [];
-          for (let c = g.reasonStart; c <= g.reasonEnd; c++){
-            if (r[c] && String(r[c]).trim()){
-              reasons.push({ text: header[c]||'', ...classifyReasonTheme(header[c]) });
-            }
-          }
+          // Lý do: 1 cột Tiêu chí (text) → phân loại chủ đề
+          const critText = String(r[g.critCol]||'').trim();
+          const reasons = critText ? [{ text: critText, ...classifyReasonTheme(critText) }] : [];
           const d = parseZNSDate(r[g.dateCol]);
           responses.push({
             phone, np, rating, date: d,
-            monthKey: d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` : null,
+            monthKey: d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` : mkOf(r[g.dateCol]),
             branch: branch || 'Không xác định',
             rfm: rfmLookup[np] || null,
             reasons
@@ -3616,14 +3638,14 @@ function splitZNS(rows){
     });
     const dupRespCount = Object.values(phoneCount).filter(c => c > 1).length;
     groups[g.key] = {
-      ...g, sent: groupSent, sentCount: groupSent.length,
+      ...g, idTemp: g.idTemps.join(','),
+      sent: groupSent, sentCount: groupSent.length,
       responses, respCount: responses.length, dupRespCount,
       branchMatched,
       cost: groupSent.reduce((s,x)=>s+x.cost, 0)
     };
   });
 
-  // Chi nhánh + tháng (gộp tháng từ bảng 1 và SubmitDate)
   const branchSet = new Set(sent.map(s => s.branch).filter(Boolean));
   const monthSet = new Set();
   sent.forEach(s => { if (s.monthKey) monthSet.add(s.monthKey); });
@@ -4516,7 +4538,9 @@ function renderCompare(){
 function getCampMetricsForMonth(camp, mb1, mb2, mb3){
   const sent = mb1.filter(x => x.camp === camp);
   const sentKH = new Set(sent.map(x => x.maKH));
-  const b2matched = isVoucherCamp(camp) ? mb2.filter(x => x.camp === camp) : [];
+  const campMonths = new Set(sent.map(x => x.monthKey).filter(Boolean));
+  const monthMatch = (x) => campMonths.size === 0 || !x.monthKey || campMonths.has(x.monthKey);
+  const b2matched = isVoucherCamp(camp) ? mb2.filter(x => x.camp === camp && monthMatch(x)) : [];
   if (b2matched.length > 0){
     return {
       buyers: new Set(b2matched.map(x => x.maKH)),
@@ -4528,6 +4552,7 @@ function getCampMetricsForMonth(camp, mb1, mb2, mb3){
     const minVal = campMinOrderValue(camp);
     const matched = mb3.filter(x =>
       sentKH.has(x.maKH) &&
+      monthMatch(x) &&
       b3ChannelMatch(x, campCh) &&
       (minVal === 0 || x.doanhThu >= minVal)
     );
@@ -5480,39 +5505,50 @@ function renderSection5(){
     return;
   }
 
-  // LOGIC MỚI:
-  // Bước 1: Bảng 1 ∩ Bảng 3 = TỔNG nhận áo thun
-  const b3KH = new Set(b3.map(x => x.maKH));
-  const gotShirt = new Set([...sentKH].filter(k => b3KH.has(k)));
-  const totalShirt = gotShirt.size;
+  // ============ LOGIC A1/A2 (yêu cầu mới) ============
+  // A1 = B1 ∩ B2 (KH VCSN có mặt trong B2) = vừa lấy áo thun VỪA dùng voucher (đơn ≥499K)
+  // A2 = B1 ∩ B3 (match Tháng + Mã KH + kênh) = TỔNG KH VCSN có phát sinh đơn (tổng chuyển đổi)
+  // Chỉ áo thun (không voucher) = A2 - A1
+  const campMonths = new Set(vcsnSent.map(x => x.monthKey).filter(Boolean));
+  const monthMatch = (x) => campMonths.size === 0 || !x.monthKey || campMonths.has(x.monthKey);
 
-  // Bước 2: Trong nhóm "nhận áo", ai có trong Bảng 2 (VCSN OFFLINE) = Dùng áo thun+voucher
-  const vcsnRedeem = b2.filter(x => (x.camp||'').toUpperCase().includes('OFFLINE_BD'));
-  const voucherKH = new Set(vcsnRedeem.map(x => x.maKH));
-  const both = new Set([...gotShirt].filter(k => voucherKH.has(k)));
+  // A1: KH có trong B2 của các camp VCSN OFFLINE (∩ tập đã gửi)
+  const vcsnRedeem = b2.filter(x => (x.camp||'').toUpperCase().includes('OFFLINE_BD') && monthMatch(x));
+  const a1Set = new Set(vcsnRedeem.map(x => x.maKH).filter(k => sentKH.has(k)));
+  const A1 = a1Set.size;
 
-  // Bước 3: Chỉ áo = Tổng áo - Cả 2
-  const onlyShirt = new Set([...gotShirt].filter(k => !both.has(k)));
-  const noResponse = new Set([...sentKH].filter(k => !b3KH.has(k)));
+  // A2: KH VCSN có đơn trong B3 (match tháng + Mã KH + kênh offline)
+  const a2Rows = b3.filter(x => sentKH.has(x.maKH) && monthMatch(x) && (x.kenh||'').toLowerCase().includes('offline'));
+  const a2Set = new Set(a2Rows.map(x => x.maKH));
+  const A2 = a2Set.size;
+
+  // Chỉ áo thun = A2 - A1 (có đơn nhưng không dùng voucher)
+  const onlyShirtSet = new Set([...a2Set].filter(k => !a1Set.has(k)));
+  const both = a1Set;              // dùng cả 2
+  const onlyShirt = onlyShirtSet;  // chỉ áo thun
+  const gotShirt = a2Set;          // tổng chuyển đổi = A2
+  const totalShirt = A2;
 
   // Doanh thu
-  const revBoth = b3.filter(x => both.has(x.maKH)).reduce((s,x)=>s+x.doanhThu, 0);
-  const revOnly = b3.filter(x => onlyShirt.has(x.maKH)).reduce((s,x)=>s+x.doanhThu, 0);
+  const revBoth = a2Rows.filter(x => a1Set.has(x.maKH)).reduce((s,x)=>s+x.doanhThu, 0);
+  const revOnly = a2Rows.filter(x => onlyShirtSet.has(x.maKH)).reduce((s,x)=>s+x.doanhThu, 0);
+  const b3KH = a2Set;
+  const noResponse = new Set([...sentKH].filter(k => !a2Set.has(k)));
 
   document.getElementById('vcsnSent').textContent = fmtN(totalSent);
-  document.getElementById('vcsnShirt').textContent = fmtN(totalShirt);
-  document.getElementById('vcsnShirtSub').textContent = fmtPct(totalShirt/totalSent*100) + ' của tổng gửi';
+  document.getElementById('vcsnShirt').textContent = fmtN(A2);
+  document.getElementById('vcsnShirtSub').textContent = fmtPct(A2/totalSent*100) + ' của tổng gửi · A2';
   document.getElementById('vcsnOnly').textContent = fmtN(onlyShirt.size);
-  document.getElementById('vcsnOnlySub').textContent = fmtPct(onlyShirt.size/Math.max(totalShirt,1)*100) + ' của tổng áo';
+  document.getElementById('vcsnOnlySub').textContent = 'A2−A1 · chỉ áo thun';
   document.getElementById('vcsnBoth').textContent = fmtN(both.size);
-  document.getElementById('vcsnBothSub').textContent = fmtPct(both.size/Math.max(totalShirt,1)*100) + ' của tổng áo';
+  document.getElementById('vcsnBothSub').textContent = 'A1 · dùng cả voucher';
 
   // Funnel
   const funnelData = [
     { label: '1. Gửi SMS sinh nhật', val: totalSent, color: COLORS.amber, pct: 100 },
-    { label: '2. TỔNG nhận áo thun (B1 ∩ B3)', val: totalShirt, color: COLORS.amberBright, pct: totalShirt/totalSent*100 },
-    { label: '3. Trong đó: Chỉ áo thun', val: onlyShirt.size, color: COLORS.violet, pct: onlyShirt.size/totalSent*100 },
-    { label: '4. Trong đó: Dùng áo thun+voucher', val: both.size, color: COLORS.green, pct: both.size/totalSent*100 }
+    { label: '2. TỔNG chuyển đổi VCSN (A2 = B1∩B3)', val: A2, color: COLORS.amberBright, pct: A2/totalSent*100 },
+    { label: '3. Chỉ áo thun (A2−A1)', val: onlyShirt.size, color: COLORS.violet, pct: onlyShirt.size/totalSent*100 },
+    { label: '4. Dùng áo thun + voucher (A1 = B1∩B2)', val: both.size, color: COLORS.green, pct: both.size/totalSent*100 }
   ];
   document.getElementById('vcsnFunnel').innerHTML = funnelData.map(f => `
     <div class="funnel-step">
