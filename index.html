@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>GUMAC · Atelier CRM v4.9</title>
+<title>GUMAC · Atelier CRM v5.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -350,14 +350,15 @@ main{ padding: 24px 32px 80px 32px; max-width: 1600px; }
 }
 .ms-dropdown{
   display: none; position: absolute; top: 100%; left: 0; right: 0;
-  margin-top: 6px; max-height: 320px; overflow-y: auto;
+  margin-top: 6px; max-height: 360px; overflow-y: auto; overflow-x: hidden;
   background: var(--surface-2);
   border: 1.5px solid var(--amber);
   border-radius: 10px;
   box-shadow: 0 18px 50px -8px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.2);
   z-index: 9999;
   padding: 6px;
-  min-width: 220px;
+  min-width: 300px;
+  width: max-content; max-width: 420px;
 }
 .ms-dropdown.show{ display: block; backdrop-filter: blur(8px); }
 :root .ms-dropdown{ background: #1a2335; }
@@ -370,11 +371,12 @@ main{ padding: 24px 32px 80px 32px; max-width: 1600px; }
   border-radius: 6px; color: var(--ink); font-size: 12px; outline: none;
 }
 .ms-option{
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: flex-start; gap: 10px;
   padding: 8px 10px; border-radius: 6px;
   cursor: pointer; font-size: 12.5px; color: var(--ink-2);
   transition: background .15s ease;
 }
+.ms-option span{ flex: 1; white-space: normal; word-break: break-word; line-height: 1.4; }
 .ms-option:hover{ background: var(--bg-2);}
 .ms-checkbox{
   width: 16px; height: 16px; border-radius: 4px;
@@ -980,8 +982,8 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     <div class="section active" id="section-overview">
       <div class="page-header">
         <div>
-          <h1 class="page-title">CRM Monitor</h1>
-          <p class="page-sub">Real-time telemetry · Tổng quan toàn hệ thống GUMAC</p>
+          <h1 class="page-title">Bảng điều khiển CRM</h1>
+          <p class="page-sub">Số liệu thời gian thực · Tổng quan toàn hệ thống GUMAC</p>
         </div>
 
       </div>
@@ -1034,7 +1036,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
 
       <div class="grid-2" style="margin-top: 14px;">
         <div class="card">
-          <p class="card-title" style="margin-bottom: 14px;">Performance Monitor</p>
+          <p class="card-title" style="margin-bottom: 14px;">Theo dõi hiệu suất</p>
           <div class="progress-row">
             <div class="progress-label"><span>Tỷ lệ chuyển đổi (CR)</span><span id="prCR">—</span></div>
             <div class="progress-bar"><div class="progress-fill" id="prCRBar" style="width:0%"></div></div>
@@ -1071,7 +1073,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
         <div class="card chart-card">
           <div class="chart-head" style="flex-wrap: wrap; gap: 10px;">
             <div>
-              <p class="chart-title">Telemetry đa chỉ số theo ngày</p>
+              <p class="chart-title">Số liệu đa chỉ số theo ngày</p>
               <p class="chart-sub">Chọn các chỉ số muốn xem · Real-time daily telemetry</p>
             </div>
             <div id="ovMetricChips" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
@@ -1148,7 +1150,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     <div class="section" id="section-campaigns">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Campaign Workshop</h1>
+          <h1 class="page-title">Quản lý chiến dịch</h1>
           <p class="page-sub">Quản lý chiến dịch SMS · Theo dõi hiệu suất & ROI</p>
         </div>
 
@@ -1167,7 +1169,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
                 <th>Tháng</th>
                 <th>Nguồn match</th>
                 <th class="num">SMS gửi</th>
-                <th class="num">KH unique</th>
+                <th class="num">KH riêng biệt</th>
                 <th class="num">CR</th>
                 <th class="num">Đơn</th>
                 <th class="num">ATV</th>
@@ -1346,7 +1348,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
                 <th>Chiến dịch</th>
                 <th>Nguồn match</th>
                 <th class="num">SMS gửi</th>
-                <th class="num">KH unique</th>
+                <th class="num">KH riêng biệt</th>
                 <th class="num">KH mua</th>
                 <th class="num">CR</th>
                 <th class="num">Đơn</th>
@@ -1388,7 +1390,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
         <div class="card chart-card">
           <div class="chart-head">
             <div>
-              <p class="chart-title">Funnel: Gửi → KH unique → KH mua</p>
+              <p class="chart-title">Phễu: Gửi → KH riêng biệt → KH mua</p>
               <p class="chart-sub">Mức độ chuyển đổi qua các giai đoạn</p>
             </div>
           </div>
@@ -1460,7 +1462,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
               <tr>
                 <th>Chi nhánh</th>
                 <th class="num">SMS gửi</th>
-                <th class="num">KH unique</th>
+                <th class="num">KH riêng biệt</th>
                 <th class="num">KH mua</th>
                 <th class="num">CR</th>
                 <th class="num">Đơn từ SMS</th>
@@ -1745,7 +1747,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     <div class="section" id="section-sec-5">
       <div class="page-header">
         <div>
-          <div class="section-no">Mục 05 · Birthday Offline Campaign</div>
+          <div class="section-no">Mục 05 · Chiến dịch sinh nhật Offline</div>
           <h1 class="page-title" id="sec5Title">Chiến dịch sinh nhật OFFLINE</h1>
           <p class="page-sub">Phân tích 2 điều kiện kép áp dụng offline: tặng áo thun (khi ra cửa hàng) + giảm 10% hóa đơn 499K (khi dùng voucher). VCSN ONLINE được phân tích ở Mục 1.</p>
         </div>
@@ -1777,7 +1779,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
       <div class="card chart-card" style="margin-top: 14px;">
         <div class="chart-head">
           <div>
-            <p class="chart-title">Funnel chiến dịch sinh nhật</p>
+            <p class="chart-title">Phễu chiến dịch sinh nhật</p>
             <p class="chart-sub">Gửi SMS → Ra cửa hàng (nhận áo) → Dùng áo thun+voucher · Tổng áo = Chỉ áo + (Áo thun+voucher)</p>
           </div>
         </div>
@@ -1813,6 +1815,28 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
           </div>
         </div>
         <div class="chart-wrap tall"><canvas id="c5_branch"></canvas></div>
+      </div>
+
+      <!-- Bảng top cửa hàng tỷ lệ chuyển đổi VCSN -->
+      <div class="card table-card" style="margin-top: 14px;">
+        <div class="table-head">
+          <p class="chart-title">Top cửa hàng theo tỷ lệ chuyển đổi đơn từ VCSN</p>
+          <p class="chart-sub">Tỷ lệ chuyển đổi = KH có phát sinh đơn (B) / KH đã gửi SMS · sắp xếp giảm dần</p>
+        </div>
+        <div class="table-scroll">
+          <table id="vcsnBranchTable">
+            <thead><tr>
+              <th>Cửa hàng</th>
+              <th class="num">KH đã gửi</th>
+              <th class="num">KH chuyển đổi (B)</th>
+              <th class="num">Dùng voucher (A)</th>
+              <th class="num">Chỉ áo thun (C)</th>
+              <th class="num">Tỷ lệ chuyển đổi</th>
+              <th class="num">Doanh thu</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Phân hạng mốc doanh thu VCSN -->
@@ -2003,7 +2027,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     <div class="section" id="section-zns-overview">
       <div class="page-header">
         <div>
-          <div class="section-no">ZNS · Survey Analytics</div>
+          <div class="section-no">ZNS · Phân tích khảo sát</div>
           <h1 class="page-title">Tổng quan khảo sát ZNS</h1>
           <p class="page-sub">Phân tích phản hồi khảo sát qua Zalo ZNS theo 4 nhóm: Offline, Online Đơn bán, Online Đơn đổi, Online Trải nghiệm.</p>
         </div>
@@ -2037,7 +2061,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
           <div class="card-sub" id="znsTotalSentSub">—</div>
         </div>
         <div class="card">
-          <p class="card-title">Phản hồi · Response Rate</p>
+          <p class="card-title">Phản hồi · Tỷ lệ phản hồi</p>
           <div class="card-value" id="znsTotalResp">—</div>
           <div class="card-sub" id="znsTotalRespSub">—</div>
         </div>
@@ -2055,7 +2079,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
 
       <!-- TẦNG 2: TỔNG QUAN SỐ LIỆU TỪNG CHIẾN DỊCH -->
       <div class="section-head" style="margin-top: 28px;">
-        <div class="section-no">Tầng 2 · Campaign Summary</div>
+        <div class="section-no">Tầng 2 · Tổng hợp chiến dịch</div>
         <h3 class="chart-title" style="font-size: 17px; margin-top: 6px;">Tổng quan số liệu từng chiến dịch</h3>
       </div>
       <div class="card table-card">
@@ -2079,7 +2103,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
 
       <!-- TẦNG 3: CHI TIẾT TỪNG CHIẾN DỊCH -->
       <div class="section-head" style="margin-top: 28px;">
-        <div class="section-no">Tầng 3 · Campaign Detail</div>
+        <div class="section-no">Tầng 3 · Chi tiết chiến dịch</div>
         <h3 class="chart-title" style="font-size: 17px; margin-top: 6px;">Chi tiết từng chiến dịch</h3>
         <p class="section-desc">Phân bố sao, tỷ lệ phản hồi và lý do đánh giá riêng của từng chiến dịch.</p>
       </div>
@@ -2151,7 +2175,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     <div class="section" id="section-zns-branch">
       <div class="page-header">
         <div>
-          <div class="section-no">ZNS · Branch Report</div>
+          <div class="section-no">ZNS · Báo cáo chi nhánh</div>
           <h1 class="page-title">Báo cáo khảo sát theo chi nhánh</h1>
           <p class="page-sub">Chất lượng dịch vụ từng chi nhánh · Cảnh báo đỏ khi % chưa hài lòng > 2% hoặc % hài lòng < 98%.</p>
         </div>
@@ -2206,7 +2230,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     <div class="section" id="section-zns-rfm">
       <div class="page-header">
         <div>
-          <div class="section-no">ZNS · RFM Response Analysis</div>
+          <div class="section-no">ZNS · Phân tích RFM phản hồi</div>
           <h1 class="page-title">Tệp RFM phản hồi khảo sát</h1>
           <p class="page-sub">Đối chiếu khách đã mua hàng (Online/Offline) với phản hồi khảo sát qua SĐT — xem mỗi nhóm RFM đánh giá thế nào.</p>
         </div>
@@ -2275,7 +2299,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     <div class="section" id="section-zns-compare">
       <div class="page-header">
         <div>
-          <div class="section-no">ZNS · Month Comparison</div>
+          <div class="section-no">ZNS · So sánh theo tháng</div>
           <h1 class="page-title">So sánh chất lượng theo tháng</h1>
           <p class="page-sub">Đối chiếu % sao giữa tháng hiện tại và tháng trước theo từng chi nhánh.</p>
         </div>
@@ -2329,7 +2353,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     <div class="section" id="section-zns-insight">
       <div class="page-header">
         <div>
-          <div class="section-no">ZNS · Auto Insight</div>
+          <div class="section-no">ZNS · Phân tích tự động</div>
           <h1 class="page-title">Insight & Đề xuất hành động</h1>
           <p class="page-sub">Kết quả tóm gọn: điểm tốt cần duy trì, điểm chưa tốt kèm đề xuất xử lý ngay.</p>
         </div>
@@ -2366,7 +2390,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     </div>
 
     <div style="margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; display:flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-      <div>© GUMAC · Atelier CRM v4.9 · Digital Marketing Team</div>
+      <div>© GUMAC · Atelier CRM v5.0 · Digital Marketing Team</div>
       <div>Master Artisan · Live data from Google Sheets</div>
     </div>
   </main>
@@ -2904,7 +2928,8 @@ function getCampMetrics(camp, b1All, b2All, b3All){
 
   let buyers, orders, rev, atv, source;
   // Match B2 trước (Chiến dịch + Tháng) nếu là camp voucher
-  const b2matched = isVoucherCamp(camp) ? b2All.filter(x => x.camp === camp && monthMatch(x)) : [];
+  // Mọi chiến dịch đều thử B2 trước (khớp tên Chiến dịch + Tháng); B2 trống mới sang B3
+  const b2matched = b2All.filter(x => x.camp === camp && monthMatch(x));
   if (b2matched.length > 0){
     buyers = new Set(b2matched.map(x => x.maKH));
     orders = b2matched.length;
@@ -3336,7 +3361,7 @@ function downloadXLSX(){
         'Chiến dịch': c,
         'Nguồn match': m.source === 'voucher_b2' ? 'Voucher (B2)' : 'Mã KH (B3)',
         'SMS gửi': m.sentTotal,
-        'KH unique': m.uniqueSent,
+        'KH riêng biệt': m.uniqueSent,
         'KH mua': m.uniqueBuy,
         'CR (%)': +m.cr.toFixed(2),
         'Số đơn': m.orders,
@@ -3879,7 +3904,7 @@ const OV_METRICS = [
   { key: 'totalRev', label: 'Doanh thu toàn HT', color: '#3b82f6', axis: 'y', unit: 'vnd' },
   { key: 'smsRev', label: 'Doanh thu từ SMS', color: '#b89aff', axis: 'y', unit: 'vnd' },
   { key: 'orders', label: 'Tổng số đơn', color: '#6ba3ff', axis: 'y1', unit: 'num' },
-  { key: 'customers', label: 'Số KH unique', color: '#5fd49a', axis: 'y1', unit: 'num' },
+  { key: 'customers', label: 'Số KH riêng biệt', color: '#5fd49a', axis: 'y1', unit: 'num' },
   { key: 'smsOrders', label: 'Đơn từ SMS', color: '#ffc560', axis: 'y1', unit: 'num' },
   { key: 'voucherUsed', label: 'Voucher dùng', color: '#ff9aa1', axis: 'y1', unit: 'num' }
 ];
@@ -4497,7 +4522,7 @@ function renderCompare(){
   // Detailed table
   const rows = [
     { label: 'SMS đã gửi', key: 'totalSent', fmt: fmtN, higherBetter: true },
-    { label: 'KH unique nhận', key: 'uniqueSent', fmt: fmtN, higherBetter: true },
+    { label: 'KH riêng biệt nhận', key: 'uniqueSent', fmt: fmtN, higherBetter: true },
     { label: 'KH chuyển đổi', key: 'uniqueBuy', fmt: fmtN, higherBetter: true },
     { label: 'Số đơn từ SMS', key: 'campOrders', fmt: fmtN, higherBetter: true },
     { label: 'CR (%)', key: 'cr', fmt: v=>fmtPct(v), higherBetter: true },
@@ -4540,7 +4565,7 @@ function getCampMetricsForMonth(camp, mb1, mb2, mb3){
   const sentKH = new Set(sent.map(x => x.maKH));
   const campMonths = new Set(sent.map(x => x.monthKey).filter(Boolean));
   const monthMatch = (x) => campMonths.size === 0 || !x.monthKey || campMonths.has(x.monthKey);
-  const b2matched = isVoucherCamp(camp) ? mb2.filter(x => x.camp === camp && monthMatch(x)) : [];
+  const b2matched = mb2.filter(x => x.camp === camp && monthMatch(x));
   if (b2matched.length > 0){
     return {
       buyers: new Set(b2matched.map(x => x.maKH)),
@@ -4639,7 +4664,7 @@ function renderSection1(){
   // Funnel
   STATE.charts.c1_funnel = new Chart(document.getElementById('c1_funnel'), {
     type: 'bar',
-    data: { labels: ['SMS gửi', 'KH unique', 'KH mua'],
+    data: { labels: ['SMS gửi', 'KH riêng biệt', 'KH mua'],
       datasets: rows.map((r,i) => ({
         label: shortCamp(r.c),
         data: [r.sentTotal, r.uniqueSent, r.uniqueBuy],
@@ -5537,18 +5562,18 @@ function renderSection5(){
 
   document.getElementById('vcsnSent').textContent = fmtN(totalSent);
   document.getElementById('vcsnShirt').textContent = fmtN(A2);
-  document.getElementById('vcsnShirtSub').textContent = fmtPct(A2/totalSent*100) + ' của tổng gửi · A2';
+  document.getElementById('vcsnShirtSub').textContent = 'B · tổng KH chuyển đổi (B1∩B3)';
   document.getElementById('vcsnOnly').textContent = fmtN(onlyShirt.size);
-  document.getElementById('vcsnOnlySub').textContent = 'A2−A1 · chỉ áo thun';
+  document.getElementById('vcsnOnlySub').textContent = 'C = B−A · chỉ áo thun, không voucher';
   document.getElementById('vcsnBoth').textContent = fmtN(both.size);
-  document.getElementById('vcsnBothSub').textContent = 'A1 · dùng cả voucher';
+  document.getElementById('vcsnBothSub').textContent = 'A · áo thun + voucher (đơn ≥499K)';
 
   // Funnel
   const funnelData = [
     { label: '1. Gửi SMS sinh nhật', val: totalSent, color: COLORS.amber, pct: 100 },
-    { label: '2. TỔNG chuyển đổi VCSN (A2 = B1∩B3)', val: A2, color: COLORS.amberBright, pct: A2/totalSent*100 },
-    { label: '3. Chỉ áo thun (A2−A1)', val: onlyShirt.size, color: COLORS.violet, pct: onlyShirt.size/totalSent*100 },
-    { label: '4. Dùng áo thun + voucher (A1 = B1∩B2)', val: both.size, color: COLORS.green, pct: both.size/totalSent*100 }
+    { label: '2. TỔNG KH chuyển đổi VCSN — B (B1∩B3)', val: A2, color: COLORS.amberBright, pct: A2/totalSent*100 },
+    { label: '3. Chỉ áo thun, không voucher — C = B−A', val: onlyShirt.size, color: COLORS.violet, pct: onlyShirt.size/totalSent*100 },
+    { label: '4. Áo thun + voucher (đơn ≥499K) — A (B1∩B2)', val: both.size, color: COLORS.green, pct: both.size/totalSent*100 }
   ];
   document.getElementById('vcsnFunnel').innerHTML = funnelData.map(f => `
     <div class="funnel-step">
@@ -5628,6 +5653,41 @@ function renderSection5(){
 
   const shirtRate = totalShirt/totalSent*100;
   const bothRate = both.size/Math.max(totalShirt,1)*100;
+
+  // ===== Bảng top cửa hàng theo tỷ lệ chuyển đổi VCSN =====
+  // Gom theo chi nhánh (từ B1 gửi): KH gửi, KH chuyển đổi (B), voucher (A), chỉ áo (C), DT
+  const brStats = {};
+  vcsnSent.forEach(x => {
+    const b = x.branch || 'Không xác định';
+    if (!brStats[b]) brStats[b] = { sent: new Set(), conv: new Set(), vou: new Set(), rev: 0 };
+    brStats[b].sent.add(x.maKH);
+  });
+  // Map KH → chi nhánh (từ B1 VCSN)
+  const khBranch = {};
+  vcsnSent.forEach(x => { if (!khBranch[x.maKH]) khBranch[x.maKH] = x.branch || 'Không xác định'; });
+  a2Rows.forEach(x => {
+    const b = khBranch[x.maKH]; if (!b || !brStats[b]) return;
+    brStats[b].conv.add(x.maKH);
+    brStats[b].rev += x.doanhThu;
+    if (a1Set.has(x.maKH)) brStats[b].vou.add(x.maKH);
+  });
+  const brRows = Object.entries(brStats).map(([name, v]) => {
+    const sent = v.sent.size, conv = v.conv.size, vou = v.vou.size;
+    return { name, sent, conv, vou, only: conv - vou, rate: sent ? conv/sent*100 : 0, rev: v.rev };
+  }).filter(r => r.conv > 0).sort((a,b) => b.rate - a.rate);
+
+  document.querySelector('#vcsnBranchTable tbody').innerHTML = brRows.map(r => `
+    <tr>
+      <td><b>${trimBranch(r.name)}</b></td>
+      <td class="num">${fmtN(r.sent)}</td>
+      <td class="num"><b>${fmtN(r.conv)}</b></td>
+      <td class="num" style="color:var(--green);">${fmtN(r.vou)}</td>
+      <td class="num" style="color:var(--violet);">${fmtN(r.only)}</td>
+      <td class="num"><b style="color:var(--amber);">${fmtPct(r.rate)}</b></td>
+      <td class="num">${fmtVN(r.rev)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);">Không có dữ liệu</td></tr>';
+
   const items = [];
   items.push({
     type: 'positive', icon: '↑', label: 'Tỷ lệ ra cửa hàng',
