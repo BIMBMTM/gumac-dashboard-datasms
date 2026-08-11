@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>GUMAC · Atelier CRM v5.0</title>
+<title>GUMAC · Atelier CRM v5.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -2390,7 +2390,7 @@ td.num, th.num{ text-align: right; font-variant-numeric: tabular-nums;}
     </div>
 
     <div style="margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; display:flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
-      <div>© GUMAC · Atelier CRM v5.0 · Digital Marketing Team</div>
+      <div>© GUMAC · Atelier CRM v5.1 · Digital Marketing Team</div>
       <div>Master Artisan · Live data from Google Sheets</div>
     </div>
   </main>
@@ -2416,9 +2416,25 @@ const ENCRYPTED_DATA = {
   verifyCT: 'G6lUn/g+U8FlMlFlwYc7Q/bCnDVZB518bIcE/t/jZQ==',
   iter: 100000
 };
+
+// ============================================================
+// DANH SÁCH LINK SMS (nhiều Google Sheets, tự động gộp data)
+// Mỗi link mã hóa bằng CÙNG password. iv + ct riêng mỗi link.
+// THÊM LINK MỚI: mã hóa link (cùng salt/iter ở ENCRYPTED_DATA) rồi
+//   thêm 1 dòng { iv: '...', ct: '...' } vào mảng dưới đây.
+// (Link 1 = link gốc trong ENCRYPTED_DATA.iv/ct — được tự động thêm vào đầu danh sách)
+// ============================================================
+const ENCRYPTED_LINKS = [
+  // Link 2 (data tháng mới)
+  { iv: 'p/j0nQNlmc5xfVoc', ct: 'fUxYgXzi3l6KZAlLCJO3r4z+57QN9A0NPmA5Nc35f7T9UAZ5TIyv1eJlStpcE9iVOsUOy6efzX+3A6ZWLUG54CluGDSp95o0JbmVwkVe/Di5hvTtFJLu+5T7eVQx+bjRj+qMT56hiGk0HSZwBydSJFpyVOeCritBvfkZY7ZqaSDYjKk8WNOyxi8nKjZASNSyZjN7hjF7hSt2y26zZW1yRYmOmWWIGHW7vpw055QhW70=' },
+  // Link 3, 4... thêm ở đây:
+  // { iv: '...', ct: '...' },
+];
 const SESSION_KEY = 'gumac_crm_v3';
 // SHEET_URL được decrypt từ ENCRYPTED_DATA bằng password, lưu trong RAM chỉ khi đúng pwd
 let SHEET_URL = null;
+// Danh sách TẤT CẢ url SMS (link gốc + các link trong ENCRYPTED_LINKS)
+let SHEET_URLS = [];
 // Session token decrypt được = bằng chứng đã đúng pwd
 let SESSION_TOKEN = null;
 
@@ -2474,6 +2490,27 @@ async function tryDecrypt(password){
   return bytesToText(new Uint8Array(urlPlain));
 }
 
+// Decrypt TẤT CẢ link SMS (link gốc + ENCRYPTED_LINKS) bằng cùng password
+async function decryptAllLinks(password){
+  const salt = b64ToBytes(ENCRYPTED_DATA.salt);
+  const key = await deriveKey(password, salt, ENCRYPTED_DATA.iter);
+  const urls = [];
+  // Link gốc (ENCRYPTED_DATA.iv/ct)
+  try {
+    const p = await crypto.subtle.decrypt({ name:'AES-GCM', iv: b64ToBytes(ENCRYPTED_DATA.iv) }, key, b64ToBytes(ENCRYPTED_DATA.ct));
+    urls.push(bytesToText(new Uint8Array(p)));
+  } catch(e){}
+  // Các link bổ sung
+  for (const link of ENCRYPTED_LINKS){
+    try {
+      const p = await crypto.subtle.decrypt({ name:'AES-GCM', iv: b64ToBytes(link.iv) }, key, b64ToBytes(link.ct));
+      const u = bytesToText(new Uint8Array(p));
+      if (u && !urls.includes(u)) urls.push(u);
+    } catch(e){ console.warn('Link giải mã lỗi (bỏ qua):', e.message); }
+  }
+  return urls;
+}
+
 async function checkLogin(){
   const pwd = document.getElementById('pwdInput').value;
   const err = document.getElementById('loginErr');
@@ -2496,11 +2533,14 @@ async function checkLogin(){
       return;
     }
     SHEET_URL = url;
+    SHEET_URLS = await decryptAllLinks(pwd);
+    if (!SHEET_URLS.length) SHEET_URLS = [url];
     // Lưu session token: chính là URL đã decrypt thành công + timestamp
     // Sau khi mã hoá lại bằng key tạm (random per session) rồi lưu sessionStorage
     SESSION_TOKEN = url;
     try {
       sessionStorage.setItem(SESSION_KEY, btoa(url + '|' + Date.now()));
+      sessionStorage.setItem(SESSION_KEY + '_urls', btoa(encodeURIComponent(JSON.stringify(SHEET_URLS))));
     } catch(e){}
 
     document.getElementById('loginWrap').style.display = 'none';
@@ -2518,7 +2558,9 @@ async function checkLogin(){
 
 function logout(){
   sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(SESSION_KEY + '_urls');
   SHEET_URL = null;
+  SHEET_URLS = [];
   SESSION_TOKEN = null;
   location.reload();
 }
@@ -2545,6 +2587,15 @@ document.getElementById('pwdInput').addEventListener('keydown', e => { if(e.key=
     }
     SHEET_URL = url;
     SESSION_TOKEN = url;
+    // Khôi phục mảng URLs (nếu có)
+    try {
+      const savedUrls = sessionStorage.getItem(SESSION_KEY + '_urls');
+      if (savedUrls){
+        const arr = JSON.parse(decodeURIComponent(atob(savedUrls)));
+        if (Array.isArray(arr) && arr.length) SHEET_URLS = arr;
+      }
+    } catch(e){}
+    if (!SHEET_URLS.length) SHEET_URLS = [url];
     document.getElementById('loginWrap').style.display = 'none';
     document.getElementById('app').style.display = 'grid';
     document.getElementById('loader').classList.remove('hide');
@@ -2717,29 +2768,41 @@ async function loadData(){
   if (!SHEET_URL || !SHEET_URL.startsWith('https://docs.google.com/')){
     throw new Error('Chưa xác thực - không thể tải dữ liệu');
   }
-  // ƯU TIÊN 1: Auto-fetch từ Google Sheets (cache-bust để luôn lấy bản mới nhất)
-  document.getElementById('loaderText').textContent = 'Đang kết nối Google Sheets (Live data)…';
-  try{
-    const cacheBust = '&_t=' + Date.now();
+  // Danh sách link cần fetch (nhiều Google Sheets → gộp data)
+  const urls = (SHEET_URLS && SHEET_URLS.length) ? SHEET_URLS : [SHEET_URL];
+
+  document.getElementById('loaderText').textContent =
+    urls.length > 1 ? `Đang kết nối ${urls.length} Google Sheets…` : 'Đang kết nối Google Sheets (Live data)…';
+
+  // Fetch 1 URL → trả về mảng rows (đã bỏ 2 dòng header nếu là link phụ)
+  async function fetchOne(url, idx){
+    const cacheBust = (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
-
-    const res = await fetch(SHEET_URL + cacheBust, {
-      mode: 'cors',
-      signal: controller.signal,
-      cache: 'no-store'
-    });
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    const res = await fetch(url + cacheBust, { mode: 'cors', signal: controller.signal, cache: 'no-store' });
     clearTimeout(timeoutId);
-
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const txt = await res.text();
     if (!txt || txt.length < 100) throw new Error('Dữ liệu rỗng');
+    const rows = Papa.parse(txt, { header: false }).data;
+    // Link đầu tiên: giữ nguyên (có 2 dòng header). Link phụ: bỏ 2 dòng header để nối tiếp.
+    return idx === 0 ? rows : rows.slice(2);
+  }
 
-    document.getElementById('loaderText').textContent = '✓ Đã tải dữ liệu Live từ Google Sheets';
-    return Papa.parse(txt, { header: false }).data;
+  try{
+    // Fetch tất cả link song song
+    const results = await Promise.all(urls.map((u,i) => fetchOne(u,i).catch(e => {
+      console.warn(`Link ${i+1} lỗi:`, e.message);
+      return i === 0 ? Promise.reject(e) : [];  // link chính lỗi → fail; link phụ lỗi → bỏ qua
+    })));
+    // Gộp: link 1 (có header) + data các link sau
+    const merged = results.flat();
+    const okCount = results.filter(r => r.length > 0).length;
+    document.getElementById('loaderText').textContent =
+      `✓ Đã tải & gộp dữ liệu từ ${okCount}/${urls.length} Google Sheets`;
+    return merged;
   } catch(err){
     console.warn('Google Sheets fetch failed:', err.message);
-    // ƯU TIÊN 2 (BACKUP): Cho upload file CSV thủ công
     return await loadDataFromUpload(err.message);
   }
 }
@@ -3062,6 +3125,7 @@ function escapeHtml(s){
 }
 
 /* ============== FILTERS ============== */
+let _lastCampScope = '';
 function setupFilters(){
   const years = new Set(), months = new Set(), branches = new Set(), camps = new Set();
   STATE.raw.b1.forEach(x => {
@@ -3085,6 +3149,7 @@ function setupFilters(){
   createMultiSelect('msMonth', 'Tháng', STATE.options.months.map(m => ({value: String(m), label: 'Tháng ' + m})), 'month');
   createMultiSelect('msBranch', 'Chi nhánh', STATE.options.branches.map(b => ({value: b, label: trimBranch(b)})), 'branch');
   createMultiSelect('msCampaign', 'Chiến dịch', STATE.options.campaigns.map(c => ({value: c, label: shortCamp(c)})), 'campaign');
+  _lastCampScope = STATE.filters.year.join(',') + '|' + STATE.filters.month.join(',');
 }
 
 const normBr = s => String(s||'').toLowerCase().replace(/[^a-zà-ỹ0-9]/gi,'');
@@ -3116,8 +3181,45 @@ function applyFilters(){
   STATE.filtered.b2 = STATE.raw.b2.filter(x => yearOK(x) && monthOK(x) && branchOK_SMS(x) && campOK(x));
   STATE.filtered.b3 = STATE.raw.b3.filter(x => yearOK(x) && monthOK(x) && branchOK_B3(x));
 
+  // Bộ lọc chiến dịch chỉ hiển thị camp có trong tháng/năm đang chọn
+  rebuildCampaignOptions();
+
   updateFilterStats();
   renderAll();
+}
+
+// Rebuild danh sách chiến dịch trong dropdown theo Năm + Tháng đang chọn
+function rebuildCampaignOptions(){
+  const f = STATE.filters;
+  const yearOK = (x) => f.year.includes('all') || (x.year && f.year.includes(String(x.year)));
+  const monthOK = (x) => f.month.includes('all') || (x.month && f.month.includes(String(x.month)));
+  // Camp có mặt trong phạm vi năm+tháng (không xét filter camp/branch)
+  const scopeCamps = [...new Set(
+    STATE.raw.b1.filter(x => yearOK(x) && monthOK(x)).map(x => x.camp).filter(Boolean)
+  )].sort();
+  // Chỉ rebuild khi phạm vi thay đổi (tránh vẽ lại liên tục)
+  const scopeKey = f.year.join(',') + '|' + f.month.join(',');
+  if (scopeKey === _lastCampScope) return;
+  _lastCampScope = scopeKey;
+
+  // Giữ lại các camp đang chọn mà vẫn còn trong phạm vi
+  const keepSel = f.campaign.includes('all') ? 'all'
+    : f.campaign.filter(c => scopeCamps.includes(c));
+  createMultiSelect('msCampaign', 'Chiến dịch',
+    scopeCamps.map(c => ({value: c, label: shortCamp(c)})), 'campaign');
+  // Khôi phục trạng thái chọn
+  const dd = document.getElementById('ms_campaign_dd');
+  if (dd && keepSel !== 'all' && keepSel.length){
+    dd.querySelector('.ms-option.all')?.classList.remove('selected');
+    dd.querySelectorAll('.ms-option:not(.all)').forEach(o => {
+      o.classList.toggle('selected', keepSel.includes(o.dataset.value));
+    });
+    STATE.filters.campaign = keepSel;
+    const btn = document.getElementById('ms_campaign_btn');
+    const lbl = btn?.querySelector('span');
+    if (lbl) lbl.textContent = `Chiến dịch: ${keepSel.length === 1 ? shortCamp(keepSel[0]) : keepSel.length + ' mục'}`;
+    btn?.classList.add('active');
+  }
 }
 
 function updateFilterStats(){
